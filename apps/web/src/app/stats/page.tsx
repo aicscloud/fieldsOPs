@@ -8,7 +8,9 @@ import { DonutChart } from '@/components/charts/DonutChart';
 import { LineChart } from '@/components/charts/LineChart';
 import { StatusChart } from '@/components/StatusChart';
 import { StatusBadge, Skeleton } from '@/components/ui';
+import { SearchSelect } from '@/components/SearchSelect';
 import { api } from '@/lib/api';
+import { STATUS_FILTER_OPTIONS } from '@/lib/search';
 
 type Stats = {
   total: number;
@@ -68,6 +70,20 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED: '#d64545',
 };
 
+const DOC_KIND_OPTIONS = [
+  { value: 'QUOTE', label: 'Devis' },
+  { value: 'INVOICE', label: 'Facture' },
+];
+
+const DOC_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: 'Brouillon' },
+  { value: 'SENT', label: 'Envoyé' },
+  { value: 'ACCEPTED', label: 'Accepté' },
+  { value: 'REJECTED', label: 'Refusé' },
+  { value: 'PAID', label: 'Payé' },
+  { value: 'CANCELLED', label: 'Annulé' },
+];
+
 function formatWhen(iso?: string | null) {
   if (!iso) return '';
   return new Date(iso).toLocaleString('fr-FR', {
@@ -84,6 +100,12 @@ export default function StatsPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [docQ, setDocQ] = useState('');
+  const [docKind, setDocKind] = useState('');
+  const [docStatus, setDocStatus] = useState('');
+  const [jobQ, setJobQ] = useState('');
+  const [jobStatus, setJobStatus] = useState('');
+  const [stockQ, setStockQ] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -123,6 +145,30 @@ export default function StatsPage() {
       recent: docs.slice(0, 8),
     };
   }, [docs]);
+
+  const filteredDocs = useMemo(() => {
+    const needle = docQ.trim().toLowerCase();
+    return docs.filter((d) => {
+      if (docKind && d.kind !== docKind) return false;
+      if (docStatus && d.status !== docStatus) return false;
+      if (!needle) return true;
+      return `${d.number} ${d.title} ${d.customer?.name ?? ''}`.toLowerCase().includes(needle);
+    });
+  }, [docs, docQ, docKind, docStatus]);
+
+  const filteredRecent = useMemo(() => {
+    const needle = jobQ.trim().toLowerCase();
+    return (stats?.recent ?? []).filter((o) => {
+      if (jobStatus && o.status !== jobStatus) return false;
+      if (!needle) return true;
+      return `${o.number} ${o.title} ${o.customer ?? ''} ${o.technician ?? ''} ${o.site ?? ''}`.toLowerCase().includes(needle);
+    });
+  }, [stats, jobQ, jobStatus]);
+
+  const filteredStock = useMemo(() => {
+    const needle = stockQ.trim().toLowerCase();
+    return lowStock.filter((p) => !needle || `${p.sku} ${p.name}`.toLowerCase().includes(needle));
+  }, [lowStock, stockQ]);
 
   const maxWorker = Math.max(1, ...(stats?.byWorker.map((w) => w.count) ?? [1]));
 
@@ -279,8 +325,13 @@ export default function StatsPage() {
               <div className="stats-panel-head">
                 <h2>Documents récents</h2>
               </div>
+              <div className="filters">
+                <input className="input" placeholder="Recherche" value={docQ} onChange={(e) => setDocQ(e.target.value)} aria-label="Recherche documents" />
+                <SearchSelect compact value={docKind} selectedLabel={DOC_KIND_OPTIONS.find((o) => o.value === docKind)?.label} placeholder="Type" staticOptions={DOC_KIND_OPTIONS} loadOptions={async () => DOC_KIND_OPTIONS} onChange={setDocKind} allowClear />
+                <SearchSelect compact value={docStatus} selectedLabel={DOC_STATUS_OPTIONS.find((o) => o.value === docStatus)?.label} placeholder="Statut" staticOptions={DOC_STATUS_OPTIONS} loadOptions={async () => DOC_STATUS_OPTIONS} onChange={setDocStatus} allowClear />
+              </div>
               <DataTable
-                rows={billing.recent}
+                rows={filteredDocs}
                 rowKey={(d) => d.id}
                 defaultSortKey="number"
                 defaultSortDir="desc"
@@ -329,8 +380,12 @@ export default function StatsPage() {
                 Tout voir
               </Link>
             </div>
+            <div className="filters">
+              <input className="input" placeholder="Recherche" value={jobQ} onChange={(e) => setJobQ(e.target.value)} aria-label="Recherche interventions" />
+              <SearchSelect compact value={jobStatus} selectedLabel={STATUS_FILTER_OPTIONS.find((o) => o.value === jobStatus)?.label} placeholder="Statut" staticOptions={STATUS_FILTER_OPTIONS} loadOptions={async () => STATUS_FILTER_OPTIONS} onChange={setJobStatus} allowClear />
+            </div>
             <DataTable
-              rows={stats.recent}
+              rows={filteredRecent}
               rowKey={(o) => o.id}
               defaultSortKey="number"
               defaultSortDir="desc"
@@ -391,8 +446,11 @@ export default function StatsPage() {
                 Stock
               </Link>
             </div>
+            <div className="filters">
+              <input className="input" placeholder="Recherche" value={stockQ} onChange={(e) => setStockQ(e.target.value)} aria-label="Recherche stock" />
+            </div>
             <DataTable
-              rows={lowStock}
+              rows={filteredStock}
               rowKey={(p) => p.id}
               defaultSortKey="quantity"
               defaultSortDir="asc"

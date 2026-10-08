@@ -1,12 +1,17 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
 import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
-import { searchWorkOrders } from '@/lib/search';
+import { searchWorkOrders, STATUS_FILTER_OPTIONS } from '@/lib/search';
+
+const EXPIRY_OPTIONS = [
+  { value: 'active', label: 'Valide' },
+  { value: 'expired', label: 'Expiré' },
+];
 
 type PortalLink = {
   id: string;
@@ -23,6 +28,9 @@ export default function PortalAdminPage() {
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [workOrderId, setWorkOrderId] = useState('');
   const [workOrderLabel, setWorkOrderLabel] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('');
+  const [expiry, setExpiry] = useState('');
 
   async function load() {
     setLoading(true);
@@ -40,6 +48,20 @@ export default function PortalAdminPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const now = Date.now();
+    return links.filter((l) => {
+      if (status && l.workOrder?.status !== status) return false;
+      const expired = l.expiresAt ? new Date(l.expiresAt).getTime() < now : false;
+      if (expiry === 'expired' && !expired) return false;
+      if (expiry === 'active' && expired) return false;
+      if (!needle) return true;
+      const hay = `${l.workOrder?.number ?? ''} ${l.workOrder?.title ?? ''}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [links, q, status, expiry]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,8 +118,38 @@ export default function PortalAdminPage() {
       {loading ? (
         <Skeleton height={220} />
       ) : (
-        <DataTable
-          rows={links}
+        <>
+          <div className="filters">
+            <input
+              className="input"
+              placeholder="Recherche"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Recherche"
+            />
+            <SearchSelect
+              compact
+              value={status}
+              selectedLabel={STATUS_FILTER_OPTIONS.find((o) => o.value === status)?.label}
+              placeholder="Statut"
+              staticOptions={STATUS_FILTER_OPTIONS}
+              loadOptions={async () => STATUS_FILTER_OPTIONS}
+              onChange={setStatus}
+              allowClear
+            />
+            <SearchSelect
+              compact
+              value={expiry}
+              selectedLabel={EXPIRY_OPTIONS.find((o) => o.value === expiry)?.label}
+              placeholder="Validité"
+              staticOptions={EXPIRY_OPTIONS}
+              loadOptions={async () => EXPIRY_OPTIONS}
+              onChange={setExpiry}
+              allowClear
+            />
+          </div>
+          <DataTable
+          rows={filtered}
           rowKey={(l) => l.id}
           defaultSortKey="workOrder"
           empty={
@@ -136,6 +188,7 @@ export default function PortalAdminPage() {
             },
           ]}
         />
+        </>
       )}
     </AppShell>
   );

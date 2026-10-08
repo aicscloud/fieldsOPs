@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
@@ -28,6 +28,10 @@ export default function SitesPage() {
   const [showForm, setShowForm] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [customerLabel, setCustomerLabel] = useState('');
+  const [q, setQ] = useState('');
+  const [filterCustomerId, setFilterCustomerId] = useState('');
+  const [filterCustomerLabel, setFilterCustomerLabel] = useState('');
+  const [city, setCity] = useState('');
 
   async function load() {
     setLoading(true);
@@ -45,6 +49,27 @@ export default function SitesPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  const cityOptions = useMemo(() => {
+    const cities = new Set<string>();
+    for (const site of sites) {
+      if (site.city) cities.add(site.city);
+    }
+    return [...cities]
+      .sort((a, b) => a.localeCompare(b, 'fr'))
+      .map((name) => ({ value: name, label: name }));
+  }, [sites]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return sites.filter((site) => {
+      if (filterCustomerId && site.customer?.id !== filterCustomerId) return false;
+      if (city && site.city !== city) return false;
+      if (!needle) return true;
+      const hay = `${site.name} ${site.address} ${site.city ?? ''} ${site.customer?.name ?? ''} ${site.contactName ?? ''}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [sites, q, filterCustomerId, city]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -142,8 +167,40 @@ export default function SitesPage() {
         {loading ? (
           <Skeleton height={260} />
         ) : (
-          <DataTable
-            rows={sites}
+          <>
+            <div className="filters">
+              <input
+                className="input"
+                placeholder="Recherche"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Recherche"
+              />
+              <SearchSelect
+                compact
+                value={filterCustomerId}
+                selectedLabel={filterCustomerLabel}
+                placeholder="Client"
+                loadOptions={searchCustomers}
+                onChange={(id, opt) => {
+                  setFilterCustomerId(id);
+                  setFilterCustomerLabel(opt?.label ?? '');
+                }}
+                allowClear
+              />
+              <SearchSelect
+                compact
+                value={city}
+                selectedLabel={city}
+                placeholder="Ville"
+                staticOptions={cityOptions}
+                loadOptions={async () => cityOptions}
+                onChange={setCity}
+                allowClear
+              />
+            </div>
+            <DataTable
+            rows={filtered}
             rowKey={(site) => site.id}
             defaultSortKey="name"
             empty={<EmptyState title="Aucun site" />}
@@ -191,6 +248,7 @@ export default function SitesPage() {
               },
             ]}
           />
+          </>
         )}
       </div>
     </AppShell>

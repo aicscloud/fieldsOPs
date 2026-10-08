@@ -601,51 +601,55 @@ async function main() {
   const jobs: Job[] = [];
   const hours = [8, 11, 14];
   let seq = 1;
-  let workerCursor = 0;
-  const jobIndex = new Map<string, number>();
+  const yearStart = new Date();
+  yearStart.setMonth(0, 1);
+  yearStart.setHours(0, 0, 0, 0);
+  const today0 = new Date();
+  today0.setHours(0, 0, 0, 0);
+  const spanDays = Math.max(
+    1,
+    Math.round((today0.getTime() - yearStart.getTime()) / 86_400_000),
+  );
 
-  while (jobs.length < PRIMARY_JOBS) {
-    const worker = fieldWorkers[workerCursor % fieldWorkers.length];
-    workerCursor += 1;
-    const j = jobIndex.get(worker.id) ?? 0;
-    jobIndex.set(worker.id, j + 1);
-    const day = -50 + Math.floor(j / 3);
-    if (day > 14) continue;
-    const hour = hours[j % 3];
+  for (let i = 0; i < PRIMARY_JOBS; i++) {
+    const worker = fieldWorkers[i % fieldWorkers.length];
+    const dayIndex = Math.min(spanDays, Math.floor((i * spanDays) / PRIMARY_JOBS));
+    const day = dayIndex - spanDays;
+    const hour = hours[i % 3];
     const covered =
       worker.city === 'Douala'
         ? ['Douala', 'Limbé', 'Kribi']
         : [worker.city];
     const pool = covered.flatMap((city) => customersByCity.get(city) ?? []);
     const customerPool = pool.length ? pool : createdCustomers;
-    const customer = customerPool[(j + workerCursor) % customerPool.length];
+    const customer = customerPool[i % customerPool.length];
     const customerSites = sitesByCustomer.get(customer.id) ?? [];
-    const site = customerSites[j % customerSites.length];
-    const category = CATEGORIES[(j + workerCursor) % CATEGORIES.length];
+    const site = customerSites[i % customerSites.length];
+    const category = CATEGORIES[i % CATEGORIES.length];
     const type = typeByName.get(category.name)!;
-    const draft = (j + workerCursor) % 28 === 0;
+    const draft = i % 28 === 0;
     const start = draft ? null : atHour(dayOffset(day), hour);
     const end = start ? new Date(start.getTime() + category.defaultDuration * 60_000) : null;
     let status: WorkOrderStatus = WorkOrderStatus.ASSIGNED;
     if (draft) status = WorkOrderStatus.DRAFT;
     else if (day < -1) {
-      if ((j + workerCursor) % 23 === 0) status = WorkOrderStatus.CANCELLED;
-      else if ((j + workerCursor) % 29 === 0) status = WorkOrderStatus.FAILED;
+      if (i % 23 === 0) status = WorkOrderStatus.CANCELLED;
+      else if (i % 29 === 0) status = WorkOrderStatus.FAILED;
       else status = WorkOrderStatus.COMPLETED;
     } else if (day <= 0) {
       status = [WorkOrderStatus.ASSIGNED, WorkOrderStatus.EN_ROUTE, WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.PAUSED][
-        (j + hour) % 4
+        (i + hour) % 4
       ];
-    } else if ((j + workerCursor) % 6 === 0) {
+    } else if (i % 6 === 0) {
       status = WorkOrderStatus.SCHEDULED;
     }
 
     const priority =
       category.name === 'Dépannage urgent'
         ? WorkOrderPriority.URGENT
-        : (j + workerCursor) % 11 === 0
+        : i % 11 === 0
           ? WorkOrderPriority.HIGH
-          : (j + workerCursor) % 9 === 0
+          : i % 9 === 0
             ? WorkOrderPriority.LOW
             : WorkOrderPriority.NORMAL;
 

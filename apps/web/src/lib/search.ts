@@ -12,6 +12,39 @@ function qs(params: Record<string, string | undefined>) {
   return s ? `?${s}` : '';
 }
 
+export const STATUS_FILTER_OPTIONS: SearchOption[] = [
+  { value: 'DRAFT', label: 'Brouillon' },
+  { value: 'SCHEDULED', label: 'Planifiée' },
+  { value: 'ASSIGNED', label: 'Affectée' },
+  { value: 'EN_ROUTE', label: 'En route' },
+  { value: 'IN_PROGRESS', label: 'En cours' },
+  { value: 'PAUSED', label: 'En pause' },
+  { value: 'COMPLETED', label: 'Terminée' },
+  { value: 'CANCELLED', label: 'Annulée' },
+  { value: 'FAILED', label: 'Échouée' },
+];
+
+export const PRIORITY_FILTER_OPTIONS: SearchOption[] = [
+  { value: 'URGENT', label: 'Urgente' },
+  { value: 'HIGH', label: 'Haute' },
+  { value: 'NORMAL', label: 'Normale' },
+  { value: 'LOW', label: 'Basse' },
+];
+
+export const TEAM_FILTER_OPTIONS: SearchOption[] = [
+  { value: 'FIELD', label: 'Technicien' },
+  { value: 'TRANSPORT', label: 'Transport' },
+];
+
+export async function searchGroups(q: string): Promise<SearchOption[]> {
+  const rows = await api<{ id: string; name: string }[]>('/groups');
+  const query = q.trim().toLowerCase();
+  return rows
+    .filter((g) => !query || g.name.toLowerCase().includes(query))
+    .slice(0, TAKE)
+    .map((g) => ({ value: g.id, label: g.name }));
+}
+
 export async function searchCustomers(q: string): Promise<SearchOption[]> {
   const rows = await api<{ id: string; name: string }[]>(
     `/customers${qs({ q, take: String(TAKE) })}`,

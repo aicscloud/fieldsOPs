@@ -16,7 +16,7 @@ type Doc = {
   status: string;
   total: number;
   currency: string;
-  customer?: { name: string };
+  customer?: { id?: string; name: string };
   workOrder?: { number: string } | null;
   lines?: { id: string; label: string; quantity: number; unitPrice: number }[];
 };
@@ -44,6 +44,15 @@ const KIND_OPTIONS = [
   { value: 'INVOICE', label: 'Facture' },
 ];
 
+const DOC_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: 'Brouillon' },
+  { value: 'SENT', label: 'Envoyé' },
+  { value: 'ACCEPTED', label: 'Accepté' },
+  { value: 'REJECTED', label: 'Refusé' },
+  { value: 'PAID', label: 'Payé' },
+  { value: 'CANCELLED', label: 'Annulé' },
+];
+
 export default function BillingPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +69,11 @@ export default function BillingPage() {
   const [laborPrice, setLaborPrice] = useState(0);
   const [partLines, setPartLines] = useState<BillLine[]>([]);
   const [taxRate, setTaxRate] = useState(20);
+  const [q, setQ] = useState('');
+  const [filterKind, setFilterKind] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterCustomerId, setFilterCustomerId] = useState('');
+  const [filterCustomerLabel, setFilterCustomerLabel] = useState('');
 
   const previewTotal = useMemo(() => {
     const sub =
@@ -67,6 +81,18 @@ export default function BillingPage() {
       partLines.reduce((acc, l) => acc + l.quantity * l.unitPrice, 0);
     return sub * (1 + taxRate / 100);
   }, [laborQty, laborPrice, partLines, taxRate]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return docs.filter((d) => {
+      if (filterKind && d.kind !== filterKind) return false;
+      if (filterStatus && d.status !== filterStatus) return false;
+      if (filterCustomerId && d.customer?.id !== filterCustomerId) return false;
+      if (!needle) return true;
+      const hay = `${d.number} ${d.title} ${d.customer?.name ?? ''} ${d.workOrder?.number ?? ''}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [docs, q, filterKind, filterStatus, filterCustomerId]);
 
   async function load() {
     setLoading(true);
@@ -313,8 +339,50 @@ export default function BillingPage() {
       {loading ? (
         <Skeleton height={240} />
       ) : (
-        <DataTable
-          rows={docs}
+        <>
+          <div className="filters">
+            <input
+              className="input"
+              placeholder="Recherche"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Recherche"
+            />
+            <SearchSelect
+              compact
+              value={filterKind}
+              selectedLabel={KIND_OPTIONS.find((o) => o.value === filterKind)?.label}
+              placeholder="Type"
+              staticOptions={KIND_OPTIONS}
+              loadOptions={async () => KIND_OPTIONS}
+              onChange={setFilterKind}
+              allowClear
+            />
+            <SearchSelect
+              compact
+              value={filterStatus}
+              selectedLabel={DOC_STATUS_OPTIONS.find((o) => o.value === filterStatus)?.label}
+              placeholder="Statut"
+              staticOptions={DOC_STATUS_OPTIONS}
+              loadOptions={async () => DOC_STATUS_OPTIONS}
+              onChange={setFilterStatus}
+              allowClear
+            />
+            <SearchSelect
+              compact
+              value={filterCustomerId}
+              selectedLabel={filterCustomerLabel}
+              placeholder="Client"
+              loadOptions={searchCustomers}
+              onChange={(id, opt) => {
+                setFilterCustomerId(id);
+                setFilterCustomerLabel(opt?.label ?? '');
+              }}
+              allowClear
+            />
+          </div>
+          <DataTable
+          rows={filtered}
           rowKey={(d) => d.id}
           defaultSortKey="number"
           defaultSortDir="desc"
@@ -386,6 +454,7 @@ export default function BillingPage() {
             },
           ]}
         />
+        </>
       )}
     </AppShell>
   );

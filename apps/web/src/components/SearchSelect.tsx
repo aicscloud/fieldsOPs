@@ -31,6 +31,8 @@ type Props = {
   selectedLabel?: string;
   /** Options locales (pas d’API) — filtrées côté client, max 10 affichées. */
   staticOptions?: SearchOption[];
+  /** Déclencheur bas, pour une barre de filtres. */
+  compact?: boolean;
 };
 
 const LIMIT = 10;
@@ -47,6 +49,7 @@ export function SearchSelect({
   allowClear = true,
   selectedLabel,
   staticOptions,
+  compact,
 }: Props) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -118,7 +121,10 @@ export function SearchSelect({
   }
 
   return (
-    <div className={`search-select ${disabled ? 'is-disabled' : ''}`} ref={rootRef}>
+    <div
+      className={`search-select ${compact ? 'is-compact' : ''} ${disabled ? 'is-disabled' : ''}`}
+      ref={rootRef}
+    >
       {label ? (
         <label className="field" htmlFor={id}>
           <span>

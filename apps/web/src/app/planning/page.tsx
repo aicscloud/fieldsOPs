@@ -34,14 +34,26 @@ import {
   Wrench,
 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
+import { SearchSelect } from '@/components/SearchSelect';
 import { Avatar, Button, Drawer, EmptyState, Skeleton, StatusBadge, Toast } from '@/components/ui';
 import { api } from '@/lib/api';
+import {
+  PRIORITY_FILTER_OPTIONS,
+  STATUS_FILTER_OPTIONS,
+  TEAM_FILTER_OPTIONS,
+  searchCustomers,
+  searchGroups,
+  searchSites,
+  searchWorkers,
+  searchWorkOrderTypes,
+} from '@/lib/search';
 
 type Worker = {
   id: string;
   firstName: string;
   lastName: string;
   role: string;
+  group?: { id: string; name: string } | null;
 };
 
 type WorkOrder = {
@@ -55,9 +67,11 @@ type WorkOrder = {
   scheduledStart?: string | null;
   scheduledEnd?: string | null;
   assignedToId?: string | null;
+  team?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   customer?: {
+    id?: string;
     name: string;
     type?: string;
     email?: string | null;
@@ -66,6 +80,7 @@ type WorkOrder = {
     notes?: string | null;
   };
   site?: {
+    id?: string;
     name: string;
     address: string;
     city?: string | null;
@@ -97,7 +112,18 @@ type WorkOrder = {
 };
 
 type ViewMode = 'day' | 'week' | 'month';
-type StatusFilter = 'ALL' | 'ASSIGNED' | 'EN_ROUTE' | 'IN_PROGRESS' | 'LATE';
+type StatusFilter =
+  | 'ALL'
+  | 'LATE'
+  | 'DRAFT'
+  | 'SCHEDULED'
+  | 'ASSIGNED'
+  | 'EN_ROUTE'
+  | 'IN_PROGRESS'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'FAILED';
 
 const STATUS_FILTERS: { key: StatusFilter; label: string; tone: string }[] = [
   { key: 'ALL', label: 'Tout', tone: 'all' },
@@ -360,6 +386,20 @@ export default function PlanningPage() {
   const [selected, setSelected] = useState<WorkOrder | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [q, setQ] = useState('');
+  const [groupId, setGroupId] = useState('');
+  const [groupLabel, setGroupLabel] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [companyLabel, setCompanyLabel] = useState('');
+  const [siteId, setSiteId] = useState('');
+  const [siteLabel, setSiteLabel] = useState('');
+  const [workerId, setWorkerId] = useState('');
+  const [workerLabel, setWorkerLabel] = useState('');
+  const [typeId, setTypeId] = useState('');
+  const [typeLabel, setTypeLabel] = useState('');
+  const [priority, setPriority] = useState('');
+  const [city, setCity] = useState('');
+  const [team, setTeam] = useState('');
   const [now, setNow] = useState(() => new Date());
 
   const sensors = useSensors(
@@ -402,12 +442,44 @@ export default function PlanningPage() {
     return [];
   }, [view, cursor]);
 
+  const cityOptions = useMemo(() => {
+    const cities = new Set<string>();
+    for (const order of orders) {
+      if (order.site?.city) cities.add(order.site.city);
+    }
+    return [...cities]
+      .sort((a, b) => a.localeCompare(b, 'fr'))
+      .map((name) => ({ value: name, label: name }));
+  }, [orders]);
+
+  const visibleOrders = useMemo(() => {
+    const inGroup = groupId
+      ? new Set(workers.filter((w) => w.group?.id === groupId).map((w) => w.id))
+      : null;
+    const needle = q.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (companyId && o.customer?.id !== companyId) return false;
+      if (siteId && o.site?.id !== siteId) return false;
+      if (inGroup && (!o.assignedToId || !inGroup.has(o.assignedToId))) return false;
+      if (workerId && o.assignedToId !== workerId) return false;
+      if (typeId && o.type?.id !== typeId) return false;
+      if (priority && o.priority !== priority) return false;
+      if (city && o.site?.city !== city) return false;
+      if (team && o.team !== team) return false;
+      if (needle) {
+        const hay = `${o.number} ${o.title} ${o.customer?.name ?? ''} ${o.site?.name ?? ''} ${o.site?.city ?? ''}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      return true;
+    });
+  }, [orders, workers, groupId, companyId, siteId, workerId, typeId, priority, city, team, q]);
+
   const unplanned = useMemo(
     () =>
-      orders.filter(
+      visibleOrders.filter(
         (o) => !o.assignedToId && !DONE.has(o.status),
       ),
-    [orders],
+    [visibleOrders],
   );
 
   function inVisiblePeriod(date: Date) {
@@ -423,36 +495,41 @@ export default function PlanningPage() {
   /** Techniciens avec ≥1 intervention planifiée sur la période (jour / semaine / mois). */
   const busyWorkerIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const o of orders) {
+    for (const o of visibleOrders) {
       if (!o.assignedToId || !o.scheduledStart) continue;
       if (o.status === 'CANCELLED') continue;
       if (!matchesStatusFilter(o, statusFilter, now)) continue;
       if (inVisiblePeriod(new Date(o.scheduledStart))) ids.add(o.assignedToId);
     }
     return ids;
-  }, [orders, days, view, cursor, statusFilter, now]);
+  }, [visibleOrders, days, view, cursor, statusFilter, now]);
 
   function selectStatusFilter(key: StatusFilter) {
     setStatusFilter(key);
   }
 
   const boardWorkers = useMemo(() => {
-    // Pendant un drag : tous les techniciens (pour pouvoir affecter un créneau vide).
-    if (activeId) return workers;
-    return workers.filter((w) => busyWorkerIds.has(w.id));
-  }, [workers, busyWorkerIds, activeId]);
+    const pool = workers.filter((w) => {
+      if (groupId && w.group?.id !== groupId) return false;
+      if (workerId && w.id !== workerId) return false;
+      return true;
+    });
+    // Pendant un drag : les techniciens du filtre (pour affecter un créneau vide).
+    if (activeId) return pool;
+    return pool.filter((w) => busyWorkerIds.has(w.id));
+  }, [workers, busyWorkerIds, activeId, groupId, workerId]);
 
   const lateOrders = useMemo(
-    () => orders.filter((o) => isLate(o, now)),
-    [orders, now],
+    () => visibleOrders.filter((o) => isLate(o, now)),
+    [visibleOrders, now],
   );
 
   const todayCount = useMemo(
     () =>
-      orders.filter(
+      visibleOrders.filter(
         (o) => o.scheduledStart && sameDay(new Date(o.scheduledStart), now),
       ).length,
-    [orders, now],
+    [visibleOrders, now],
   );
 
   const activeOrder = orders.find((o) => o.id === activeId) ?? null;
@@ -701,6 +778,124 @@ export default function PlanningPage() {
           </div>
         </div>
 
+        <div className="plan-extra-filters">
+          <input
+            className="input"
+            placeholder="Recherche"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Recherche"
+          />
+          <SearchSelect
+            compact
+            value={statusFilter === 'ALL' ? '' : statusFilter}
+            selectedLabel={
+              statusFilter === 'LATE'
+                ? 'Retard'
+                : STATUS_FILTER_OPTIONS.find((s) => s.value === statusFilter)?.label
+            }
+            placeholder="Statut"
+            staticOptions={[{ value: 'LATE', label: 'Retard' }, ...STATUS_FILTER_OPTIONS]}
+            loadOptions={async () => STATUS_FILTER_OPTIONS}
+            onChange={(id) => setStatusFilter((id || 'ALL') as StatusFilter)}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={groupId}
+            selectedLabel={groupLabel}
+            placeholder="Groupe"
+            loadOptions={searchGroups}
+            onChange={(id, opt) => {
+              setGroupId(id);
+              setGroupLabel(opt?.label ?? '');
+              setWorkerId('');
+              setWorkerLabel('');
+            }}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={workerId}
+            selectedLabel={workerLabel}
+            placeholder="Technicien"
+            loadOptions={(query) => searchWorkers(query, groupId || undefined)}
+            onChange={(id, opt) => {
+              setWorkerId(id);
+              setWorkerLabel(opt?.label ?? '');
+            }}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={team}
+            selectedLabel={TEAM_FILTER_OPTIONS.find((o) => o.value === team)?.label}
+            placeholder="Équipe"
+            staticOptions={TEAM_FILTER_OPTIONS}
+            loadOptions={async () => TEAM_FILTER_OPTIONS}
+            onChange={(id) => setTeam(id)}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={companyId}
+            selectedLabel={companyLabel}
+            placeholder="Entreprise"
+            loadOptions={searchCustomers}
+            onChange={(id, opt) => {
+              setCompanyId(id);
+              setCompanyLabel(opt?.label ?? '');
+              setSiteId('');
+              setSiteLabel('');
+            }}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={siteId}
+            selectedLabel={siteLabel}
+            placeholder="Site"
+            loadOptions={(query) => searchSites(query, companyId || undefined)}
+            onChange={(id, opt) => {
+              setSiteId(id);
+              setSiteLabel(opt?.label ?? '');
+            }}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={city}
+            selectedLabel={city}
+            placeholder="Ville"
+            staticOptions={cityOptions}
+            loadOptions={async () => cityOptions}
+            onChange={(id) => setCity(id)}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={typeId}
+            selectedLabel={typeLabel}
+            placeholder="Catégorie"
+            loadOptions={searchWorkOrderTypes}
+            onChange={(id, opt) => {
+              setTypeId(id);
+              setTypeLabel(opt?.label ?? '');
+            }}
+            allowClear
+          />
+          <SearchSelect
+            compact
+            value={priority}
+            selectedLabel={PRIORITY_FILTER_OPTIONS.find((o) => o.value === priority)?.label}
+            placeholder="Priorité"
+            staticOptions={PRIORITY_FILTER_OPTIONS}
+            loadOptions={async () => PRIORITY_FILTER_OPTIONS}
+            onChange={(id) => setPriority(id)}
+            allowClear
+          />
+        </div>
+
         <div className="plan-stats">
           <div className="plan-stat">
             <span className="plan-stat-icon" aria-hidden>
@@ -776,7 +971,7 @@ export default function PlanningPage() {
                   </div>
                   <div className="plan-month-grid">
                     {monthCells.map((day) => {
-                      const dayOrders = orders.filter(
+                      const dayOrders = visibleOrders.filter(
                         (o) =>
                           o.scheduledStart &&
                           sameDay(new Date(o.scheduledStart), day) &&
@@ -841,7 +1036,7 @@ export default function PlanningPage() {
 
                         {boardWorkers.length ? (
                           boardWorkers.map((worker) => {
-                            const dayBlocks = orders.filter(
+                            const dayBlocks = visibleOrders.filter(
                               (o) =>
                                 o.assignedToId === worker.id &&
                                 o.scheduledStart &&

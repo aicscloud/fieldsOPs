@@ -36,8 +36,15 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import {
+  PRIORITY_FILTER_OPTIONS,
+  STATUS_FILTER_OPTIONS,
+  TEAM_FILTER_OPTIONS,
   fetchAvailability,
+  searchCustomers,
+  searchGroups,
+  searchSites,
   searchWorkers,
+  searchWorkOrderTypes,
   type AvailabilityResult,
   type AvailabilitySlot,
 } from '@/lib/search';
@@ -53,6 +60,7 @@ type WorkOrder = {
   scheduledStart?: string | null;
   scheduledEnd?: string | null;
   customer?: {
+    id?: string;
     name: string;
     type?: string;
     email?: string | null;
@@ -61,6 +69,7 @@ type WorkOrder = {
     notes?: string | null;
   };
   site?: {
+    id?: string;
     name: string;
     address: string;
     city?: string | null;
@@ -77,6 +86,7 @@ type WorkOrder = {
     email?: string | null;
   } | null;
   assignedToId?: string | null;
+  team?: string | null;
   parentId?: string | null;
   children?: {
     id: string;
@@ -99,18 +109,6 @@ type WorkOrder = {
 };
 
 const DONE = new Set(['COMPLETED', 'CANCELLED', 'FAILED']);
-
-const STATUS_OPTIONS = [
-  'DRAFT',
-  'SCHEDULED',
-  'ASSIGNED',
-  'EN_ROUTE',
-  'IN_PROGRESS',
-  'PAUSED',
-  'COMPLETED',
-  'CANCELLED',
-  'FAILED',
-].map((s) => ({ value: s, label: s.replaceAll('_', ' ') }));
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -219,6 +217,18 @@ export default function WorkOrdersClient() {
   const [status, setStatus] = useState('');
   const [workerId, setWorkerId] = useState('');
   const [workerFilterLabel, setWorkerFilterLabel] = useState('');
+  const [groupId, setGroupId] = useState('');
+  const [groupLabel, setGroupLabel] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [companyLabel, setCompanyLabel] = useState('');
+  const [siteId, setSiteId] = useState('');
+  const [siteLabel, setSiteLabel] = useState('');
+  const [typeId, setTypeId] = useState('');
+  const [typeLabel, setTypeLabel] = useState('');
+  const [priority, setPriority] = useState('');
+  const [city, setCity] = useState('');
+  const [team, setTeam] = useState('');
+  const [groupByUser, setGroupByUser] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<WorkOrder | null>(null);
   const [planWorkerId, setPlanWorkerId] = useState('');
   const [planWorkerLabel, setPlanWorkerLabel] = useState('');
@@ -245,6 +255,18 @@ export default function WorkOrdersClient() {
   }, [load]);
 
   useEffect(() => {
+    void api<{ id: string; group?: { id: string } | null }[]>('/users')
+      .then((users) => {
+        const map: Record<string, string> = {};
+        for (const user of users) {
+          if (user.group?.id) map[user.id] = user.group.id;
+        }
+        setGroupByUser(map);
+      })
+      .catch(() => setGroupByUser({}));
+  }, []);
+
+  useEffect(() => {
     if (params.get('new') === '1') setCreateOpen(true);
   }, [params]);
 
@@ -257,18 +279,36 @@ export default function WorkOrdersClient() {
     }
   }
 
+  const cityOptions = useMemo(() => {
+    const cities = new Set<string>();
+    for (const order of orders) {
+      if (order.site?.city) cities.add(order.site.city);
+    }
+    return [...cities]
+      .sort((a, b) => a.localeCompare(b, 'fr'))
+      .map((name) => ({ value: name, label: name }));
+  }, [orders]);
+
   const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
     return orders.filter((o) => {
       if (o.parentId) return false;
       if (status && o.status !== status) return false;
       if (workerId && o.assignedToId !== workerId) return false;
-      if (q) {
-        const hay = `${o.number} ${o.title} ${o.customer?.name ?? ''}`.toLowerCase();
-        if (!hay.includes(q.toLowerCase())) return false;
+      if (groupId && groupByUser[o.assignedToId ?? ''] !== groupId) return false;
+      if (companyId && o.customer?.id !== companyId) return false;
+      if (siteId && o.site?.id !== siteId) return false;
+      if (typeId && o.type?.id !== typeId) return false;
+      if (priority && o.priority !== priority) return false;
+      if (city && o.site?.city !== city) return false;
+      if (team && o.team !== team) return false;
+      if (needle) {
+        const hay = `${o.number} ${o.title} ${o.customer?.name ?? ''} ${o.site?.name ?? ''} ${o.site?.city ?? ''}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
       }
       return true;
     });
-  }, [orders, status, workerId, q]);
+  }, [orders, status, workerId, groupId, companyId, siteId, typeId, priority, city, team, groupByUser, q]);
 
   function syncPlanForm(order: WorkOrder) {
     const start = order.scheduledStart
@@ -416,28 +456,113 @@ export default function WorkOrdersClient() {
       <div className="filters">
         <input
           className="input"
-          placeholder="Rechercher…"
+          placeholder="Recherche"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          aria-label="Recherche"
         />
         <SearchSelect
+          compact
           value={status}
-          selectedLabel={STATUS_OPTIONS.find((s) => s.value === status)?.label}
-          placeholder="Tous les statuts"
-          staticOptions={STATUS_OPTIONS}
-          loadOptions={async () => STATUS_OPTIONS}
+          selectedLabel={STATUS_FILTER_OPTIONS.find((s) => s.value === status)?.label}
+          placeholder="Statut"
+          staticOptions={STATUS_FILTER_OPTIONS}
+          loadOptions={async () => STATUS_FILTER_OPTIONS}
           onChange={(v) => setStatus(v)}
           allowClear
         />
         <SearchSelect
+          compact
+          value={groupId}
+          selectedLabel={groupLabel}
+          placeholder="Groupe"
+          loadOptions={searchGroups}
+          onChange={(id, opt) => {
+            setGroupId(id);
+            setGroupLabel(opt?.label ?? '');
+            setWorkerId('');
+            setWorkerFilterLabel('');
+          }}
+          allowClear
+        />
+        <SearchSelect
+          compact
           value={workerId}
           selectedLabel={workerFilterLabel}
-          placeholder="Tous les techniciens"
-          loadOptions={searchWorkers}
+          placeholder="Technicien"
+          loadOptions={(query) => searchWorkers(query, groupId || undefined)}
           onChange={(id, opt) => {
             setWorkerId(id);
             setWorkerFilterLabel(opt?.label ?? '');
           }}
+          allowClear
+        />
+        <SearchSelect
+          compact
+          value={team}
+          selectedLabel={TEAM_FILTER_OPTIONS.find((o) => o.value === team)?.label}
+          placeholder="Équipe"
+          staticOptions={TEAM_FILTER_OPTIONS}
+          loadOptions={async () => TEAM_FILTER_OPTIONS}
+          onChange={(id) => setTeam(id)}
+          allowClear
+        />
+        <SearchSelect
+          compact
+          value={companyId}
+          selectedLabel={companyLabel}
+          placeholder="Entreprise"
+          loadOptions={searchCustomers}
+          onChange={(id, opt) => {
+            setCompanyId(id);
+            setCompanyLabel(opt?.label ?? '');
+            setSiteId('');
+            setSiteLabel('');
+          }}
+          allowClear
+        />
+        <SearchSelect
+          compact
+          value={siteId}
+          selectedLabel={siteLabel}
+          placeholder="Site"
+          loadOptions={(query) => searchSites(query, companyId || undefined)}
+          onChange={(id, opt) => {
+            setSiteId(id);
+            setSiteLabel(opt?.label ?? '');
+          }}
+          allowClear
+        />
+        <SearchSelect
+          compact
+          value={city}
+          selectedLabel={city}
+          placeholder="Ville"
+          staticOptions={cityOptions}
+          loadOptions={async () => cityOptions}
+          onChange={(id) => setCity(id)}
+          allowClear
+        />
+        <SearchSelect
+          compact
+          value={typeId}
+          selectedLabel={typeLabel}
+          placeholder="Catégorie"
+          loadOptions={searchWorkOrderTypes}
+          onChange={(id, opt) => {
+            setTypeId(id);
+            setTypeLabel(opt?.label ?? '');
+          }}
+          allowClear
+        />
+        <SearchSelect
+          compact
+          value={priority}
+          selectedLabel={PRIORITY_FILTER_OPTIONS.find((o) => o.value === priority)?.label}
+          placeholder="Priorité"
+          staticOptions={PRIORITY_FILTER_OPTIONS}
+          loadOptions={async () => PRIORITY_FILTER_OPTIONS}
+          onChange={(id) => setPriority(id)}
           allowClear
         />
       </div>

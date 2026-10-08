@@ -1,8 +1,9 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
+import { SearchSelect } from '@/components/SearchSelect';
 import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 
@@ -20,6 +21,11 @@ function money(n?: number | null) {
   return `${(n ?? 0).toFixed(2)} €`;
 }
 
+const STOCK_OPTIONS = [
+  { value: 'low', label: 'Sous seuil' },
+  { value: 'ok', label: 'En stock' },
+];
+
 export default function InventoryPage() {
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +33,9 @@ export default function InventoryPage() {
   const [open, setOpen] = useState(false);
   const [adjustId, setAdjustId] = useState<string | null>(null);
   const [editPart, setEditPart] = useState<Part | null>(null);
+  const [q, setQ] = useState('');
+  const [stock, setStock] = useState('');
+  const [unit, setUnit] = useState('');
 
   async function load() {
     setLoading(true);
@@ -43,6 +52,23 @@ export default function InventoryPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  const unitOptions = useMemo(() => {
+    const units = new Set(parts.map((p) => p.unit).filter(Boolean));
+    return [...units].sort((a, b) => a.localeCompare(b, 'fr')).map((name) => ({ value: name, label: name }));
+  }, [parts]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return parts.filter((p) => {
+      const low = p.quantity <= p.minQuantity;
+      if (stock === 'low' && !low) return false;
+      if (stock === 'ok' && low) return false;
+      if (unit && p.unit !== unit) return false;
+      if (!needle) return true;
+      return `${p.sku} ${p.name}`.toLowerCase().includes(needle);
+    });
+  }, [parts, q, stock, unit]);
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -219,8 +245,38 @@ export default function InventoryPage() {
       {loading ? (
         <Skeleton height={240} />
       ) : (
-        <DataTable
-          rows={parts}
+        <>
+          <div className="filters">
+            <input
+              className="input"
+              placeholder="Recherche"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Recherche"
+            />
+            <SearchSelect
+              compact
+              value={stock}
+              selectedLabel={STOCK_OPTIONS.find((o) => o.value === stock)?.label}
+              placeholder="Stock"
+              staticOptions={STOCK_OPTIONS}
+              loadOptions={async () => STOCK_OPTIONS}
+              onChange={setStock}
+              allowClear
+            />
+            <SearchSelect
+              compact
+              value={unit}
+              selectedLabel={unit}
+              placeholder="Unité"
+              staticOptions={unitOptions}
+              loadOptions={async () => unitOptions}
+              onChange={setUnit}
+              allowClear
+            />
+          </div>
+          <DataTable
+          rows={filtered}
           rowKey={(p) => p.id}
           defaultSortKey="name"
           empty={<EmptyState title="Aucun article" />}
@@ -276,6 +332,7 @@ export default function InventoryPage() {
             },
           ]}
         />
+        </>
       )}
     </AppShell>
   );

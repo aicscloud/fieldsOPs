@@ -378,6 +378,117 @@ b {
   color: var(--danger);
 }
 
+.dash-layout {
+  display: grid;
+  grid-template-columns: 1.35fr 0.85fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.dash-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.dash-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dash-head a {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.dash-list {
+  display: grid;
+}
+
+.dash-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.dash-row:hover .dash-title {
+  color: var(--primary);
+}
+
+.dash-title {
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-statuses {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dash-status {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 32px;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.dash-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.dash-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+}
+
+.dash-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.dash-foot {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1100px) {
+  .dash-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .people-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -530,7 +641,6 @@ b {
 }
 
 .input,
-.select,
 .textarea {
   width: 100%;
   border-radius: var(--radius-md);
@@ -540,6 +650,23 @@ b {
   padding: 8px 12px;
   min-height: 36px;
   transition: border-color var(--transition);
+}
+
+.select {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  min-height: 32px;
+  transition: border-color var(--transition);
+}
+
+.select option {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .input:focus,
@@ -958,16 +1085,28 @@ b {
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
   margin-bottom: 14px;
+  align-items: center;
 }
 
 .filters .input,
 .filters .select,
-.filters .search-select {
-  min-width: 160px;
-  max-width: 240px;
-  flex: 1;
+.filters .search-select,
+.plan-extra-filters .input,
+.plan-extra-filters .search-select {
+  width: 118px;
+  min-width: 0;
+  max-width: 132px;
+  flex: 0 0 auto;
+}
+
+.filters .input,
+.plan-extra-filters .input {
+  min-height: 26px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  border-radius: 6px;
 }
 
 .search-box {
@@ -1023,6 +1162,13 @@ b {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+}
+
+.plan-extra-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .plan-status-filters {
@@ -2626,9 +2772,33 @@ b {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-  color: var(--ink);
+  color: var(--muted);
+  font-size: 0.82rem;
   text-align: left;
   cursor: pointer;
+}
+
+.search-select.is-compact .search-select-trigger {
+  min-height: 26px;
+  padding: 1px 6px;
+  gap: 4px;
+  font-size: 0.72rem;
+  border-radius: 6px;
+}
+
+.search-select.is-compact .search-select-trigger > span:first-child {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-select.is-compact .search-select-panel {
+  min-width: 200px;
+  width: max-content;
+  max-width: 260px;
+  right: auto;
 }
 
 .search-select-actions {
@@ -2655,8 +2825,8 @@ b {
 .search-select-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: 6px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
 }
@@ -2664,15 +2834,17 @@ b {
 .search-select-search .input {
   border: 0;
   box-shadow: none;
-  padding: 4px 0;
-  min-height: 28px;
+  padding: 2px 0;
+  min-height: 24px;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .search-select-list {
   list-style: none;
   margin: 0;
-  padding: 4px;
-  max-height: 240px;
+  padding: 2px;
+  max-height: 200px;
   overflow: auto;
 }
 
@@ -2681,36 +2853,40 @@ b {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   text-align: left;
   cursor: pointer;
-  color: var(--ink);
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .search-select-option strong {
   display: block;
-  font-weight: 500;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .search-select-option .muted {
   display: block;
-  font-size: 0.78rem;
-  margin-top: 2px;
+  font-size: 0.68rem;
+  margin-top: 1px;
 }
 
 .search-select-option:hover,
 .search-select-option.is-active {
   background: var(--surface-2);
+  color: var(--muted);
 }
 
 .search-select-empty {
-  padding: 12px;
+  padding: 8px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
 }
 
 .datepicker {
@@ -2734,7 +2910,8 @@ b {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-  color: var(--ink);
+  color: var(--muted);
+  font-size: 0.82rem;
   text-align: left;
   cursor: pointer;
 }
@@ -2760,14 +2937,14 @@ b {
   left: 0;
   top: calc(100% + 4px);
   z-index: 70;
-  width: min(320px, calc(100vw - 32px));
-  padding: 12px;
+  width: min(268px, calc(100vw - 32px));
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-lg);
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .datepicker-toolbar {
@@ -2778,17 +2955,18 @@ b {
 }
 
 .datepicker-month {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
+  color: var(--muted);
   text-transform: capitalize;
 }
 
 .datepicker-nav {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
-  color: var(--ink);
+  color: var(--muted);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -2817,10 +2995,10 @@ b {
 .datepicker-day {
   aspect-ratio: 1;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
-  color: var(--ink);
-  font-size: 0.85rem;
+  color: var(--muted);
+  font-size: 0.72rem;
   cursor: pointer;
 }
 
@@ -3161,12 +3339,12 @@ b {
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
-  width: 240px;
+  width: 180px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: var(--shadow);
-  padding: 8px;
+  padding: 4px;
   z-index: 30;
 }
 
@@ -3175,10 +3353,11 @@ b {
   text-align: left;
   border: none;
   background: transparent;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
   cursor: pointer;
-  color: var(--ink);
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .menu-item:hover {

@@ -1,8 +1,9 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
+import { SearchSelect } from '@/components/SearchSelect';
 import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 
@@ -15,12 +16,25 @@ type Category = {
   active: boolean;
 };
 
+const TEAM_OPTIONS = [
+  { value: 'field', label: 'Technicien' },
+  { value: 'both', label: 'Tech + transport' },
+];
+
+const ACTIVE_OPTIONS = [
+  { value: 'yes', label: 'Actif' },
+  { value: 'no', label: 'Inactif' },
+];
+
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [requiresTransport, setRequiresTransport] = useState(false);
+  const [q, setQ] = useState('');
+  const [team, setTeam] = useState('');
+  const [active, setActive] = useState('');
 
   async function load() {
     setLoading(true);
@@ -37,6 +51,19 @@ export default function CategoriesPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return categories.filter((c) => {
+      if (team === 'both' && !c.requiresTransport) return false;
+      if (team === 'field' && c.requiresTransport) return false;
+      if (active === 'yes' && !c.active) return false;
+      if (active === 'no' && c.active) return false;
+      if (!needle) return true;
+      const hay = `${c.name} ${c.description ?? ''}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [categories, q, team, active]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,8 +134,38 @@ export default function CategoriesPage() {
       {loading ? (
         <Skeleton height={220} />
       ) : (
-        <DataTable
-          rows={categories}
+        <>
+          <div className="filters">
+            <input
+              className="input"
+              placeholder="Recherche"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Recherche"
+            />
+            <SearchSelect
+              compact
+              value={team}
+              selectedLabel={TEAM_OPTIONS.find((o) => o.value === team)?.label}
+              placeholder="Équipe"
+              staticOptions={TEAM_OPTIONS}
+              loadOptions={async () => TEAM_OPTIONS}
+              onChange={setTeam}
+              allowClear
+            />
+            <SearchSelect
+              compact
+              value={active}
+              selectedLabel={ACTIVE_OPTIONS.find((o) => o.value === active)?.label}
+              placeholder="Actif"
+              staticOptions={ACTIVE_OPTIONS}
+              loadOptions={async () => ACTIVE_OPTIONS}
+              onChange={setActive}
+              allowClear
+            />
+          </div>
+          <DataTable
+          rows={filtered}
           rowKey={(c) => c.id}
           defaultSortKey="name"
           empty={<EmptyState title="Aucune catégorie" />}
@@ -145,6 +202,7 @@ export default function CategoriesPage() {
             },
           ]}
         />
+        </>
       )}
     </AppShell>
   );

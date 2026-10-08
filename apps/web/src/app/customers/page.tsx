@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
@@ -11,6 +11,11 @@ import { api } from '@/lib/api';
 const TYPE_OPTIONS = [
   { value: 'COMPANY', label: 'Entreprise' },
   { value: 'INDIVIDUAL', label: 'Particulier' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'ACTIVE', label: 'Actif' },
+  { value: 'INACTIVE', label: 'Inactif' },
 ];
 
 type Customer = {
@@ -29,6 +34,9 @@ export default function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [customerType, setCustomerType] = useState('COMPANY');
+  const [q, setQ] = useState('');
+  const [type, setType] = useState('');
+  const [status, setStatus] = useState('');
 
   async function load() {
     setLoading(true);
@@ -45,6 +53,17 @@ export default function CustomersPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return customers.filter((c) => {
+      if (type && c.type !== type) return false;
+      if (status && c.status !== status) return false;
+      if (!needle) return true;
+      const hay = `${c.name} ${c.email ?? ''} ${c.phone ?? ''}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [customers, q, type, status]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -119,8 +138,38 @@ export default function CustomersPage() {
       {loading ? (
         <Skeleton height={260} />
       ) : (
-        <DataTable
-          rows={customers}
+        <>
+          <div className="filters">
+            <input
+              className="input"
+              placeholder="Recherche"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Recherche"
+            />
+            <SearchSelect
+              compact
+              value={type}
+              selectedLabel={TYPE_OPTIONS.find((o) => o.value === type)?.label}
+              placeholder="Type"
+              staticOptions={TYPE_OPTIONS}
+              loadOptions={async () => TYPE_OPTIONS}
+              onChange={setType}
+              allowClear
+            />
+            <SearchSelect
+              compact
+              value={status}
+              selectedLabel={STATUS_OPTIONS.find((o) => o.value === status)?.label}
+              placeholder="Statut"
+              staticOptions={STATUS_OPTIONS}
+              loadOptions={async () => STATUS_OPTIONS}
+              onChange={setStatus}
+              allowClear
+            />
+          </div>
+          <DataTable
+          rows={filtered}
           rowKey={(c) => c.id}
           defaultSortKey="name"
           empty={<EmptyState title="Aucun client" />}
@@ -163,6 +212,7 @@ export default function CustomersPage() {
             },
           ]}
         />
+        </>
       )}
     </AppShell>
   );
