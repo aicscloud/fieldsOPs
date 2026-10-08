@@ -9,10 +9,12 @@ import {
   searchCustomers,
   searchSites,
   searchWorkers,
+  searchWorkOrderTypes,
   type AvailabilitySlot,
+  type WorkOrderTypeOption,
 } from '@/lib/search';
 
-type Type = { id: string; name: string; defaultDuration?: number | null };
+type Crew = { id: string; name: string };
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -31,8 +33,10 @@ export function QuickCreateWorkOrder({
 }: {
   onCreated?: () => void;
 }) {
-  const [types, setTypes] = useState<Type[]>([]);
   const [typeId, setTypeId] = useState('');
+  const [typeLabel, setTypeLabel] = useState('');
+  const [duration, setDuration] = useState(60);
+  const [needsTransport, setNeedsTransport] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [customerLabel, setCustomerLabel] = useState('');
   const [siteId, setSiteId] = useState('');
@@ -40,8 +44,15 @@ export function QuickCreateWorkOrder({
   const [newCustomer, setNewCustomer] = useState('');
   const [newSiteName, setNewSiteName] = useState('');
   const [newAddress, setNewAddress] = useState('');
+  const [groups, setGroups] = useState<Crew[]>([]);
+  const [fieldGroupId, setFieldGroupId] = useState('');
+  const [fieldGroupLabel, setFieldGroupLabel] = useState('');
   const [workerId, setWorkerId] = useState('');
   const [workerLabel, setWorkerLabel] = useState('');
+  const [transportGroupId, setTransportGroupId] = useState('');
+  const [transportGroupLabel, setTransportGroupLabel] = useState('');
+  const [transporterId, setTransporterId] = useState('');
+  const [transporterLabel, setTransporterLabel] = useState('');
   const [planDate, setPlanDate] = useState(() => dayKey(new Date()));
   const [planStart, setPlanStart] = useState('');
   const [planEnd, setPlanEnd] = useState('');
@@ -52,16 +63,12 @@ export function QuickCreateWorkOrder({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void api<Type[]>('/work-order-types?take=10')
-      .then((t) => {
-        setTypes(t);
-        if (t[0]) setTypeId(t[0].id);
-      })
+    void api<Crew[]>('/groups')
+      .then(setGroups)
       .catch(() => undefined);
   }, []);
 
-  const selectedType = types.find((t) => t.id === typeId);
-  const duration = selectedType?.defaultDuration ?? 60;
+  const groupOptions = groups.map((group) => ({ value: group.id, label: group.name }));
 
   const loadSlots = useCallback(async () => {
     if (!workerId || !planDate) {
@@ -140,12 +147,18 @@ export function QuickCreateWorkOrder({
         throw new Error('Indiquez un créneau de début et de fin.');
       }
       if (end <= start) throw new Error('La fin doit être après le début.');
+      if (needsTransport && (!workerId || !transporterId)) {
+        throw new Error('Choisissez un technicien et un transporteur.');
+      }
+      if (workerId && transporterId && workerId === transporterId) {
+        throw new Error('Le technicien et le transporteur doivent être deux personnes.');
+      }
 
-      const title = selectedType?.name
-        ? `${selectedType.name}${note ? `, ${note}` : ''}`
+      const title = typeLabel
+        ? `${typeLabel}${note ? `, ${note}` : ''}`
         : note || 'Intervention';
 
-      const workOrder = await api<{ id: string; number: string }>('/work-orders', {
+      await api('/work-orders', {
         method: 'POST',
         body: JSON.stringify({
           title,
@@ -157,19 +170,12 @@ export function QuickCreateWorkOrder({
           scheduledStart: start.toISOString(),
           scheduledEnd: end.toISOString(),
           estimatedMinutes: duration,
+          fieldWorkerId: workerId || undefined,
+          fieldGroupId: workerId ? fieldGroupId : undefined,
+          transporterId: needsTransport ? transporterId : undefined,
+          transportGroupId: needsTransport ? transportGroupId : undefined,
         }),
       });
-
-      if (workerId) {
-        await api(`/work-orders/${workOrder.id}/assign`, {
-          method: 'POST',
-          body: JSON.stringify({
-            fieldWorkerId: workerId,
-            scheduledStart: start.toISOString(),
-            scheduledEnd: end.toISOString(),
-          }),
-        });
-      }
 
       onCreated?.();
     } catch (err) {
@@ -181,23 +187,31 @@ export function QuickCreateWorkOrder({
 
   return (
     <form className="form-stack" onSubmit={onSubmit}>
-      <div>
-        <div className="muted" style={{ marginBottom: 8, fontSize: '0.9rem' }}>
-          Catégorie
-        </div>
-        <div className="chips">
-          {types.map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              className={`chip ${typeId === type.id ? 'active' : ''}`}
-              onClick={() => setTypeId(type.id)}
-            >
-              {type.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SearchSelect
+        label="Catégorie"
+        value={typeId}
+        selectedLabel={typeLabel}
+        placeholder="Rechercher une catégorie…"
+        loadOptions={searchWorkOrderTypes}
+        onChange={(id, opt) => {
+          const type = opt as WorkOrderTypeOption | null | undefined;
+          setTypeId(id);
+          setTypeLabel(type?.label ?? '');
+          setDuration(type?.defaultDuration && type.defaultDuration > 0 ? type.defaultDuration : 60);
+          const transport = Boolean(type?.requiresTransport);
+          setNeedsTransport(transport);
+          if (!transport) {
+            setTransportGroupId('');
+            setTransportGroupLabel('');
+            setTransporterId('');
+            setTransporterLabel('');
+          }
+          setPlanStart('');
+          setPlanEnd('');
+        }}
+        allowClear={false}
+        required
+      />
 
       <SearchSelect
         label="Client"
@@ -263,17 +277,81 @@ export function QuickCreateWorkOrder({
       ) : null}
 
       <SearchSelect
-        label="Technicien (optionnel)"
+        label="Groupe technicien"
+        value={fieldGroupId}
+        selectedLabel={fieldGroupLabel}
+        placeholder="Choisir un groupe…"
+        staticOptions={groupOptions}
+        loadOptions={async () => groupOptions}
+        onChange={(id, opt) => {
+          setFieldGroupId(id);
+          setFieldGroupLabel(opt?.label ?? '');
+          setWorkerId('');
+          setWorkerLabel('');
+          setPlanStart('');
+          setPlanEnd('');
+        }}
+        allowClear={!needsTransport}
+        required={needsTransport}
+      />
+      <SearchSelect
+        label={needsTransport ? 'Technicien' : 'Technicien (optionnel)'}
         value={workerId}
         selectedLabel={workerLabel}
-        placeholder="Affecter plus tard…"
-        loadOptions={searchWorkers}
+        placeholder={fieldGroupId ? 'Techniciens du groupe…' : 'Choisissez d’abord un groupe'}
+        disabled={!fieldGroupId}
+        loadOptions={(q) => (fieldGroupId ? searchWorkers(q, fieldGroupId) : Promise.resolve([]))}
         onChange={(id, opt) => {
           setWorkerId(id);
           setWorkerLabel(opt?.label ?? '');
+          setPlanStart('');
+          setPlanEnd('');
         }}
-        allowClear
+        allowClear={!needsTransport}
+        required={needsTransport}
       />
+
+      {needsTransport ? (
+        <>
+          <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+            Le transporteur livre les équipements. Le technicien intervient sur place.
+          </p>
+          <SearchSelect
+            label="Groupe transport"
+            value={transportGroupId}
+            selectedLabel={transportGroupLabel}
+            placeholder="Choisir un groupe…"
+            staticOptions={groupOptions}
+            loadOptions={async () => groupOptions}
+            onChange={(id, opt) => {
+              setTransportGroupId(id);
+              setTransportGroupLabel(opt?.label ?? '');
+              setTransporterId('');
+              setTransporterLabel('');
+            }}
+            allowClear={false}
+            required
+          />
+          <SearchSelect
+            label="Transporteur"
+            value={transporterId}
+            selectedLabel={transporterLabel}
+            placeholder={
+              transportGroupId ? 'Transporteurs du groupe…' : 'Choisissez d’abord un groupe'
+            }
+            disabled={!transportGroupId}
+            loadOptions={(q) =>
+              transportGroupId ? searchWorkers(q, transportGroupId) : Promise.resolve([])
+            }
+            onChange={(id, opt) => {
+              setTransporterId(id);
+              setTransporterLabel(opt?.label ?? '');
+            }}
+            allowClear={false}
+            required
+          />
+        </>
+      ) : null}
 
       <div className="plan-drawer-schedule">
         <DatePicker

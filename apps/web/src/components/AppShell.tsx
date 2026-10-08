@@ -59,7 +59,6 @@ const groups = [
     links: [
       { href: '/customers', label: 'Clients', icon: Building2 },
       { href: '/sites', label: 'Sites', icon: MapPin },
-      { href: '/team', label: 'Techniciens', icon: Users },
       { href: '/categories', label: 'Catégories', icon: Tags },
       { href: '/settings', label: 'Paramètres', icon: Settings },
     ],

@@ -29,11 +29,13 @@ export class UsersController {
     @Query('q') q?: string,
     @Query('take') take?: string,
     @Query('role') role?: MembershipRole,
+    @Query('groupId') groupId?: string,
   ) {
     return this.usersService.list(user, {
       q,
       take: take ? Number(take) : undefined,
       role,
+      groupId,
     });
   }
 

@@ -11,7 +11,7 @@ export class WorkOrderTypesService {
   list(user: AuthUser, opts?: { q?: string; take?: number }) {
     const take =
       opts?.take != null
-        ? Math.min(Math.max(opts.take, 1), 50)
+        ? Math.min(Math.max(opts.take, 1), 100)
         : undefined;
     const q = opts?.q?.trim();
     return this.prisma.workOrderType.findMany({

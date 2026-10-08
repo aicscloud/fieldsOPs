@@ -73,7 +73,14 @@ const workOrderInclude = {
   checklist: { orderBy: { sortOrder: 'asc' as const } },
   signature: true,
   children: {
-    select: { id: true, number: true, title: true, status: true, team: true },
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      status: true,
+      team: true,
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
+    },
     orderBy: { createdAt: 'desc' as const },
   },
   timeEntries: { orderBy: { startedAt: 'desc' as const } },
@@ -152,6 +159,15 @@ export class WorkOrdersService {
         type: true,
         assignedTo: {
           select: { id: true, firstName: true, lastName: true },
+        },
+        children: {
+          where: { team: TeamGroup.TRANSPORT },
+          select: {
+            id: true,
+            team: true,
+            assignedTo: { select: { id: true, firstName: true, lastName: true } },
+          },
+          take: 1,
         },
       },
       orderBy: [{ scheduledStart: 'asc' }, { createdAt: 'desc' }],
@@ -279,41 +295,147 @@ export class WorkOrdersService {
 
   async create(user: AuthUser, dto: CreateWorkOrderDto) {
     await this.ensureCustomerAndSite(user, dto.customerId, dto.siteId);
-    if (dto.typeId) await this.ensureType(user, dto.typeId);
+    const type = dto.typeId ? await this.ensureType(user, dto.typeId) : null;
+
+    if (type?.requiresTransport && (!dto.fieldWorkerId || !dto.transporterId)) {
+      throw new BadRequestException(
+        'Cette intervention nécessite un technicien et un transporteur',
+      );
+    }
+    if (dto.fieldWorkerId && dto.fieldWorkerId === dto.transporterId) {
+      throw new BadRequestException(
+        'Le technicien et le transporteur doivent être deux personnes',
+      );
+    }
+
+    if (dto.fieldWorkerId) {
+      await this.assertFieldWorker(user, dto.fieldWorkerId, dto.fieldGroupId);
+    }
+    if (dto.transporterId) {
+      await this.assertFieldWorker(user, dto.transporterId, dto.transportGroupId);
+    }
+
+    const scheduledStart = dto.scheduledStart
+      ? new Date(dto.scheduledStart)
+      : undefined;
+    const scheduledEnd = dto.scheduledEnd
+      ? new Date(dto.scheduledEnd)
+      : undefined;
+    if ((dto.fieldWorkerId || dto.transporterId) && (!scheduledStart || !scheduledEnd)) {
+      throw new BadRequestException(
+        'Un créneau est requis pour affecter un technicien',
+      );
+    }
+    if (scheduledStart && scheduledEnd && scheduledEnd <= scheduledStart) {
+      throw new BadRequestException('scheduledEnd must be after scheduledStart');
+    }
+    if (dto.fieldWorkerId && scheduledStart && scheduledEnd) {
+      await this.assertNoConflict(
+        user.organizationId,
+        dto.fieldWorkerId,
+        scheduledStart,
+        scheduledEnd,
+      );
+    }
+    if (dto.transporterId && scheduledStart && scheduledEnd) {
+      await this.assertNoConflict(
+        user.organizationId,
+        dto.transporterId,
+        scheduledStart,
+        scheduledEnd,
+      );
+    }
 
     const number = await this.nextNumber(user.organizationId);
-    const status =
-      dto.scheduledStart != null
+    const transportNumber = dto.transporterId
+      ? await this.nextNumber(user.organizationId)
+      : null;
+    const status = dto.fieldWorkerId
+      ? WorkOrderStatus.ASSIGNED
+      : scheduledStart
         ? WorkOrderStatus.SCHEDULED
         : WorkOrderStatus.DRAFT;
 
-    return this.prisma.workOrder.create({
-      data: {
-        organizationId: user.organizationId,
-        number,
-        title: dto.title,
-        description: dto.description,
-        customerId: dto.customerId,
-        siteId: dto.siteId,
-        typeId: dto.typeId,
-        priority: dto.priority,
-        status,
-        scheduledStart: dto.scheduledStart
-          ? new Date(dto.scheduledStart)
-          : undefined,
-        scheduledEnd: dto.scheduledEnd ? new Date(dto.scheduledEnd) : undefined,
-        estimatedMinutes: dto.estimatedMinutes,
-        events: {
-          create: {
-            organizationId: user.organizationId,
-            actorId: user.userId,
-            toStatus: status,
-            note: 'Work order created',
+    const created = await this.prisma.$transaction(async (tx) => {
+      const parent = await tx.workOrder.create({
+        data: {
+          organizationId: user.organizationId,
+          number,
+          title: dto.title,
+          description: dto.description,
+          customerId: dto.customerId,
+          siteId: dto.siteId,
+          typeId: dto.typeId,
+          priority: dto.priority,
+          status,
+          team: TeamGroup.FIELD,
+          assignedToId: dto.fieldWorkerId,
+          scheduledStart,
+          scheduledEnd,
+          estimatedMinutes: dto.estimatedMinutes,
+          events: {
+            create: {
+              organizationId: user.organizationId,
+              actorId: user.userId,
+              toStatus: status,
+              note: 'Work order created',
+            },
           },
         },
-      },
-      include: workOrderInclude,
+      });
+
+      if (dto.fieldWorkerId) {
+        await tx.workOrderAssignment.create({
+          data: {
+            organizationId: user.organizationId,
+            workOrderId: parent.id,
+            fieldWorkerId: dto.fieldWorkerId,
+            assignedById: user.userId,
+          },
+        });
+      }
+
+      if (dto.transporterId && transportNumber && scheduledStart && scheduledEnd) {
+        const child = await tx.workOrder.create({
+          data: {
+            organizationId: user.organizationId,
+            number: transportNumber,
+            title: `Transport · ${number}`,
+            description: `Livraison des équipements pour ${number}`,
+            customerId: dto.customerId,
+            siteId: dto.siteId,
+            priority: dto.priority,
+            status: WorkOrderStatus.ASSIGNED,
+            team: TeamGroup.TRANSPORT,
+            parentId: parent.id,
+            assignedToId: dto.transporterId,
+            scheduledStart,
+            scheduledEnd,
+            estimatedMinutes: dto.estimatedMinutes,
+            events: {
+              create: {
+                organizationId: user.organizationId,
+                actorId: user.userId,
+                toStatus: WorkOrderStatus.ASSIGNED,
+                note: `Transport lié à ${number}`,
+              },
+            },
+          },
+        });
+        await tx.workOrderAssignment.create({
+          data: {
+            organizationId: user.organizationId,
+            workOrderId: child.id,
+            fieldWorkerId: dto.transporterId,
+            assignedById: user.userId,
+          },
+        });
+      }
+
+      return parent;
     });
+
+    return this.get(user, created.id);
   }
 
   async update(user: AuthUser, id: string, dto: UpdateWorkOrderDto) {
@@ -1123,6 +1245,37 @@ export class WorkOrdersService {
       where: { id: typeId, organizationId: user.organizationId, active: true },
     });
     if (!type) throw new NotFoundException('Work order type not found');
+    return type;
+  }
+
+  private async assertFieldWorker(
+    user: AuthUser,
+    workerId: string,
+    groupId?: string,
+  ) {
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: user.organizationId,
+          userId: workerId,
+        },
+      },
+      include: { user: { select: { status: true } } },
+    });
+    if (
+      !membership ||
+      membership.user.status !== UserStatus.ACTIVE ||
+      membership.role !== MembershipRole.FIELD_WORKER
+    ) {
+      throw new BadRequestException(
+        'Choisissez un technicien actif de l’organisation',
+      );
+    }
+    if (groupId && membership.groupId !== groupId) {
+      throw new BadRequestException(
+        'Cette personne n’appartient pas au groupe choisi',
+      );
+    }
   }
 
   private async ensureOwned(user: AuthUser, id: string) {

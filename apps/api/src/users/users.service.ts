@@ -18,7 +18,7 @@ export class UsersService {
 
   async list(
     user: AuthUser,
-    opts?: { q?: string; take?: number; role?: MembershipRole },
+    opts?: { q?: string; take?: number; role?: MembershipRole; groupId?: string },
   ) {
     const take =
       opts?.take != null
@@ -29,6 +29,7 @@ export class UsersService {
       where: {
         organizationId: user.organizationId,
         ...(opts?.role ? { role: opts.role } : {}),
+        ...(opts?.groupId ? { groupId: opts.groupId } : {}),
         ...(q
           ? {
               user: {

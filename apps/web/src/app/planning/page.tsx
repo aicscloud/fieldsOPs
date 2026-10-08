@@ -81,6 +81,10 @@ type WorkOrder = {
     phone?: string | null;
     email?: string | null;
   } | null;
+  children?: {
+    team?: string;
+    assignedTo?: { firstName: string; lastName: string } | null;
+  }[];
   notes?: { id: string; body: string; createdAt: string }[];
   checklist?: { id: string; label: string; done: boolean }[];
   photos?: { id: string; url: string; caption?: string | null }[];
@@ -223,6 +227,11 @@ function formatDuration(ms: number) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m ? `${h} h ${m}` : `${h} h`;
+}
+
+function transportLabel(order: { children?: { assignedTo?: { firstName: string; lastName: string } | null }[] }) {
+  const person = order.children?.find((child) => child.assignedTo)?.assignedTo;
+  return person ? ` · transport ${person.firstName} ${person.lastName}` : '';
 }
 
 function priorityLabel(p?: string | null) {
@@ -1102,7 +1111,10 @@ export default function PlanningPage() {
                       <strong>
                         {selected.assignedTo.firstName} {selected.assignedTo.lastName}
                       </strong>
-                      <div className="muted">Technicien assigné</div>
+                      <div className="muted">
+                        Technicien
+                        {transportLabel(selected)}
+                      </div>
                       {selected.assignedTo.phone ? (
                         <a className="plan-drawer-link" href={`tel:${selected.assignedTo.phone}`}>
                           <Phone size={14} />

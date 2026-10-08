@@ -26,5 +26,9 @@ export class UpdateWorkOrderTypeDto {
 
   @IsOptional()
   @IsBoolean()
+  requiresTransport?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   active?: boolean;
 }

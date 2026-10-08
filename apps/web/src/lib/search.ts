@@ -33,10 +33,20 @@ export async function searchSites(
   }));
 }
 
-export async function searchWorkers(q: string): Promise<SearchOption[]> {
+export async function searchWorkers(
+  q: string,
+  groupId?: string,
+): Promise<SearchOption[]> {
   const rows = await api<
     { id: string; firstName: string; lastName: string; role: string }[]
-  >(`/users${qs({ q, take: String(TAKE), role: 'FIELD_WORKER' })}`);
+  >(
+    `/users${qs({
+      q,
+      take: String(TAKE),
+      role: 'FIELD_WORKER',
+      groupId,
+    })}`,
+  );
   return rows.map((w) => ({
     value: w.id,
     label: `${w.firstName} ${w.lastName}`,
@@ -72,11 +82,29 @@ export async function searchParts(q: string): Promise<SearchOption[]> {
   }));
 }
 
-export async function searchWorkOrderTypes(q: string): Promise<SearchOption[]> {
-  const rows = await api<{ id: string; name: string }[]>(
-    `/work-order-types${qs({ q, take: String(TAKE) })}`,
-  );
-  return rows.map((t) => ({ value: t.id, label: t.name }));
+export type WorkOrderTypeOption = SearchOption & {
+  defaultDuration?: number | null;
+  requiresTransport?: boolean;
+};
+
+export async function searchWorkOrderTypes(q: string): Promise<WorkOrderTypeOption[]> {
+  const rows = await api<
+    {
+      id: string;
+      name: string;
+      defaultDuration?: number | null;
+      requiresTransport?: boolean;
+    }[]
+  >(`/work-order-types${qs({ q, take: String(TAKE) })}`);
+  return rows.map((t) => ({
+    value: t.id,
+    label: t.name,
+    meta: t.requiresTransport
+      ? 'Technicien + transporteur'
+      : `${t.defaultDuration ?? 60} min`,
+    defaultDuration: t.defaultDuration,
+    requiresTransport: t.requiresTransport,
+  }));
 }
 
 export type AvailabilitySlot = {

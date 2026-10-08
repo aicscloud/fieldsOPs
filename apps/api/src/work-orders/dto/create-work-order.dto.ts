@@ -46,4 +46,20 @@ export class CreateWorkOrderDto {
   @IsInt()
   @Min(1)
   estimatedMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  fieldWorkerId?: string;
+
+  @IsOptional()
+  @IsString()
+  fieldGroupId?: string;
+
+  @IsOptional()
+  @IsString()
+  transporterId?: string;
+
+  @IsOptional()
+  @IsString()
+  transportGroupId?: string;
 }

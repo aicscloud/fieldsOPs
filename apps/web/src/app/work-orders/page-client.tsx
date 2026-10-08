@@ -77,6 +77,12 @@ type WorkOrder = {
     email?: string | null;
   } | null;
   assignedToId?: string | null;
+  parentId?: string | null;
+  children?: {
+    id: string;
+    team?: string;
+    assignedTo?: { id: string; firstName: string; lastName: string } | null;
+  }[];
   partsUsed?: {
     id: string;
     quantity: number;
@@ -184,6 +190,11 @@ function canSchedule(order: WorkOrder) {
   return !DONE.has(order.status);
 }
 
+function carrierOf(order: WorkOrder) {
+  const person = order.children?.find((child) => child.assignedTo)?.assignedTo;
+  return person ? `${person.firstName} ${person.lastName}` : '';
+}
+
 function formatSlot(slot: AvailabilitySlot) {
   return `${new Date(slot.start).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
@@ -248,6 +259,7 @@ export default function WorkOrdersClient() {
 
   const filtered = useMemo(() => {
     return orders.filter((o) => {
+      if (o.parentId) return false;
       if (status && o.status !== status) return false;
       if (workerId && o.assignedToId !== workerId) return false;
       if (q) {
@@ -497,10 +509,23 @@ export default function WorkOrdersClient() {
                 o.assignedTo
                   ? `${o.assignedTo.firstName} ${o.assignedTo.lastName}`
                   : '',
-              render: (o) =>
-                o.assignedTo
+              render: (o) => {
+                const tech = o.assignedTo
                   ? `${o.assignedTo.firstName} ${o.assignedTo.lastName}`
-                  : '',
+                  : '';
+                const carrier = o.children?.find((child) => child.assignedTo)?.assignedTo;
+                if (!tech) return carrier ? `${carrier.firstName} ${carrier.lastName}` : '';
+                if (!carrier) return tech;
+                return (
+                  <span>
+                    {tech}
+                    <span className="muted">
+                      {' '}
+                      · {carrier.firstName} {carrier.lastName}
+                    </span>
+                  </span>
+                );
+              },
             },
           ]}
         />
@@ -753,7 +778,10 @@ export default function WorkOrdersClient() {
                       <strong>
                         {selected.assignedTo.firstName} {selected.assignedTo.lastName}
                       </strong>
-                      <div className="muted">Technicien assigné</div>
+                      <div className="muted">
+                        Technicien
+                        {carrierOf(selected) ? ` · transport ${carrierOf(selected)}` : ''}
+                      </div>
                       {selected.assignedTo.phone ? (
                         <a className="plan-drawer-link" href={`tel:${selected.assignedTo.phone}`}>
                           <Phone size={14} />

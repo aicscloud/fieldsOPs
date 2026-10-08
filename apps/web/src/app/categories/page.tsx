@@ -11,6 +11,7 @@ type Category = {
   name: string;
   description?: string | null;
   defaultDuration?: number | null;
+  requiresTransport?: boolean;
   active: boolean;
 };
 
@@ -19,6 +20,7 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [requiresTransport, setRequiresTransport] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -46,8 +48,10 @@ export default function CategoriesPage() {
           name: form.get('name'),
           description: form.get('description') || undefined,
           defaultDuration: Number(form.get('defaultDuration') || 60),
+          requiresTransport,
         }),
       });
+      setRequiresTransport(false);
       setOpen(false);
       await load();
     } catch (err) {
@@ -88,6 +92,14 @@ export default function CategoriesPage() {
               min={15}
             />
           </label>
+          <label className="field" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={requiresTransport}
+              onChange={(e) => setRequiresTransport(e.target.checked)}
+            />
+            <span>Technicien et transporteur</span>
+          </label>
           <Button type="submit">Ajouter</Button>
         </form>
       </Modal>
@@ -118,6 +130,12 @@ export default function CategoriesPage() {
               header: 'Durée',
               sortValue: (c) => c.defaultDuration ?? 0,
               render: (c) => (c.defaultDuration ? `${c.defaultDuration} min` : ''),
+            },
+            {
+              key: 'requiresTransport',
+              header: 'Équipe',
+              sortValue: (c) => (c.requiresTransport ? 1 : 0),
+              render: (c) => (c.requiresTransport ? 'Tech + transport' : 'Technicien'),
             },
             {
               key: 'active',
