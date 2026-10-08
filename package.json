@@ -1,0 +1,22 @@
+{
+  "name": "fieldops",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev -w @fieldops/api",
+    "dev:web": "npm run dev -w @fieldops/web",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run prisma:generate -w @fieldops/api",
+    "db:migrate": "npm run prisma:migrate -w @fieldops/api",
+    "db:push": "npm run prisma:push -w @fieldops/api",
+    "db:studio": "npm run prisma:studio -w @fieldops/api",
+    "db:seed": "npm run prisma:seed -w @fieldops/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

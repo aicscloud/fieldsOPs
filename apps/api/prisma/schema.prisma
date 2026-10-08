@@ -1,0 +1,554 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// npm run db:seed — voir prisma/seed.ts
+
+enum MembershipRole {
+  OWNER
+  MANAGER
+  FIELD_WORKER
+}
+
+enum TeamGroup {
+  FIELD
+  TRANSPORT
+}
+
+enum NoteKind {
+  NOTE
+  EQUIPMENT_REQUEST
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum CustomerType {
+  COMPANY
+  INDIVIDUAL
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WorkOrderPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum WorkOrderStatus {
+  DRAFT
+  SCHEDULED
+  ASSIGNED
+  EN_ROUTE
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum DocumentKind {
+  QUOTE
+  INVOICE
+}
+
+enum DocumentStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+model Organization {
+  id              String   @id @default(cuid())
+  name            String
+  logoUrl         String?
+  email           String?
+  phone           String?
+  address         String?
+  country         String
+  city            String?
+  currency        String   @default("EUR")
+  timezone        String   @default("Europe/Paris")
+  language        String   @default("fr")
+  theme           String   @default("light") // light | dark | system
+  primaryColor    String   @default("#5b4fcf")
+  workdayStart    Int      @default(7)
+  workdayEnd      Int      @default(19)
+  weekStartsOn    Int      @default(1) // 0=dimanche, 1=lundi
+  defaultTaxRate  Float    @default(20)
+  laborHourlyRate Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships     Membership[]
+  customers       Customer[]
+  sites           Site[]
+  workOrderTypes  WorkOrderType[]
+  workOrders      WorkOrder[]
+  passwordResets  PasswordResetToken[]
+  refreshTokens   RefreshToken[]
+  billingDocs     BillingDocument[]
+  parts           Part[]
+  stockMovements  StockMovement[]
+  portalLinks     PortalLink[]
+  groups          Group[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  photoUrl     String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  memberships        Membership[]
+  assignedWorkOrders WorkOrder[]          @relation("AssignedWorker")
+  assignmentsMade    WorkOrderAssignment[] @relation("AssignedBy")
+  assignments        WorkOrderAssignment[] @relation("AssignedTo")
+  passwordResets     PasswordResetToken[]
+  refreshTokens      RefreshToken[]
+  workOrderEvents    WorkOrderEvent[]
+  authoredNotes      WorkOrderNote[]
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MembershipRole
+  team           TeamGroup      @default(FIELD)
+  groupId        String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group        Group?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([groupId])
+}
+
+model Group {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships  Membership[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model RefreshToken {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model PasswordResetToken {
+  id             String    @id @default(cuid())
+  organizationId String?
+  userId         String
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Customer {
+  id             String         @id @default(cuid())
+  organizationId String
+  type           CustomerType   @default(COMPANY)
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  notes          String?
+  status         CustomerStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sites        Site[]
+  workOrders   WorkOrder[]
+  billingDocs  BillingDocument[]
+
+  @@index([organizationId])
+}
+
+model Site {
+  id               String   @id @default(cuid())
+  organizationId   String
+  customerId       String
+  name             String
+  address          String
+  city             String?
+  country          String?
+  latitude         Float?
+  longitude        Float?
+  accessInstructions String?
+  contactName      String?
+  contactPhone     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workOrders   WorkOrder[]
+
+  @@index([organizationId])
+  @@index([customerId])
+}
+
+model WorkOrderType {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  description     String?
+  defaultDuration Int?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrders   WorkOrder[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model WorkOrder {
+  id               String            @id @default(cuid())
+  organizationId   String
+  number           String
+  title            String
+  description      String?
+  customerId       String
+  siteId           String
+  typeId           String?
+  priority         WorkOrderPriority @default(NORMAL)
+  status           WorkOrderStatus   @default(DRAFT)
+  assignedToId     String?
+  scheduledStart   DateTime?
+  scheduledEnd     DateTime?
+  estimatedMinutes Int?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  parentId         String?
+  team             TeamGroup         @default(FIELD)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer              @relation(fields: [customerId], references: [id])
+  site         Site                  @relation(fields: [siteId], references: [id])
+  type         WorkOrderType?        @relation(fields: [typeId], references: [id])
+  assignedTo   User?                 @relation("AssignedWorker", fields: [assignedToId], references: [id])
+  parent       WorkOrder?            @relation("WorkOrderLink", fields: [parentId], references: [id])
+  children     WorkOrder[]           @relation("WorkOrderLink")
+  assignment   WorkOrderAssignment?
+  events       WorkOrderEvent[]
+  notes        WorkOrderNote[]       @relation("NoteOnOrder")
+  spawnedFrom  WorkOrderNote[]       @relation("NoteCreatesOrder")
+  photos       WorkOrderPhoto[]
+  checklist    WorkOrderChecklistItem[]
+  signature    WorkOrderSignature?
+  timeEntries  WorkOrderTimeEntry[]
+  billingDocs  BillingDocument[]
+  partsUsed    WorkOrderPart[]
+  portalLinks  PortalLink[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, assignedToId])
+  @@index([organizationId, scheduledStart, scheduledEnd])
+}
+
+model WorkOrderAssignment {
+  id             String   @id @default(cuid())
+  organizationId String
+  workOrderId    String   @unique
+  fieldWorkerId  String
+  assignedById   String
+  assignedAt     DateTime @default(now())
+
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fieldWorker User      @relation("AssignedTo", fields: [fieldWorkerId], references: [id])
+  assignedBy  User      @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@index([organizationId])
+  @@index([fieldWorkerId])
+}
+
+model WorkOrderEvent {
+  id             String          @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  actorId        String?
+  fromStatus     WorkOrderStatus?
+  toStatus       WorkOrderStatus
+  note           String?
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime        @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
+
+model WorkOrderNote {
+  id                String   @id @default(cuid())
+  organizationId    String
+  workOrderId       String
+  authorId          String?
+  kind              NoteKind @default(NOTE)
+  body              String
+  linkedWorkOrderId String?
+  createdAt         DateTime @default(now())
+
+  workOrder       WorkOrder          @relation("NoteOnOrder", fields: [workOrderId], references: [id], onDelete: Cascade)
+  author          User?              @relation(fields: [authorId], references: [id])
+  linkedWorkOrder WorkOrder?         @relation("NoteCreatesOrder", fields: [linkedWorkOrderId], references: [id])
+  parts           WorkOrderNotePart[]
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
+
+model WorkOrderNotePart {
+  id       String @id @default(cuid())
+  noteId   String
+  partId   String
+  quantity Float
+
+  note WorkOrderNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  part Part          @relation(fields: [partId], references: [id])
+
+  @@index([noteId])
+}
+
+model WorkOrderPhoto {
+  id             String   @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  url            String
+  caption        String?
+  takenAt        DateTime @default(now())
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
+
+model WorkOrderChecklistItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  label          String
+  done           Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
+
+model WorkOrderSignature {
+  id             String   @id @default(cuid())
+  organizationId String
+  workOrderId    String   @unique
+  signerName     String
+  imageUrl       String
+  signedAt       DateTime @default(now())
+  latitude       Float?
+  longitude      Float?
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model WorkOrderTimeEntry {
+  id             String    @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  startedAt      DateTime
+  endedAt        DateTime?
+  latitudeStart  Float?
+  longitudeStart Float?
+  latitudeEnd    Float?
+  longitudeEnd   Float?
+  createdAt      DateTime  @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
+
+model WorkOrderCounter {
+  organizationId String @id
+  lastNumber     Int    @default(0)
+}
+
+model BillingDocument {
+  id             String         @id @default(cuid())
+  organizationId String
+  customerId     String
+  workOrderId    String?
+  kind           DocumentKind
+  number         String
+  status         DocumentStatus @default(DRAFT)
+  title          String
+  notes          String?
+  currency       String
+  subtotal       Float          @default(0)
+  taxRate        Float          @default(0)
+  total          Float          @default(0)
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer             @relation(fields: [customerId], references: [id])
+  workOrder    WorkOrder?           @relation(fields: [workOrderId], references: [id])
+  lines        BillingDocumentLine[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([organizationId, kind, status])
+}
+
+model BillingDocumentLine {
+  id         String @id @default(cuid())
+  documentId String
+  label      String
+  quantity   Float  @default(1)
+  unitPrice  Float  @default(0)
+  sortOrder  Int    @default(0)
+
+  document BillingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+model Part {
+  id             String   @id @default(cuid())
+  organizationId String
+  sku            String
+  name           String
+  unit           String   @default("pcs")
+  quantity       Float    @default(0)
+  minQuantity    Float    @default(0)
+  unitCost       Float?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  movements    StockMovement[]
+  usages       WorkOrderPart[]
+  noteLines    WorkOrderNotePart[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+}
+
+model StockMovement {
+  id             String   @id @default(cuid())
+  organizationId String
+  partId         String
+  delta          Float
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  part         Part         @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([partId])
+}
+
+model WorkOrderPart {
+  id             String   @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  partId         String
+  quantity       Float
+  createdAt      DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  part      Part      @relation(fields: [partId], references: [id])
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
+
+model PortalLink {
+  id             String    @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  token          String    @unique
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrder    WorkOrder    @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workOrderId])
+}
