@@ -3,9 +3,9 @@
 const COLORS: Record<string, string> = {
   DRAFT: '#8a96a3',
   SCHEDULED: '#3b6fd4',
-  ASSIGNED: '#5b4fcf',
+  ASSIGNED: '#111111',
   EN_ROUTE: '#0f9aa8',
-  IN_PROGRESS: '#5b4fcf',
+  IN_PROGRESS: '#e10600',
   PAUSED: '#c9891a',
   COMPLETED: '#2f9e6b',
   CANCELLED: '#9aa3ad',

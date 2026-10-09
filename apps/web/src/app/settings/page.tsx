@@ -79,7 +79,8 @@ const WEEK_OPTIONS = [
 ];
 
 const COLOR_PRESETS = [
-  '#5b4fcf',
+  '#e10600',
+  '#111111',
   '#2563eb',
   '#0f9aa8',
   '#2f9e6b',
@@ -107,7 +108,7 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState('Europe/Paris');
   const [language, setLanguage] = useState('fr');
   const [theme, setTheme] = useState('light');
-  const [primaryColor, setPrimaryColor] = useState('#5b4fcf');
+  const [primaryColor, setPrimaryColor] = useState('#e10600');
   const [workdayStart, setWorkdayStart] = useState(7);
   const [workdayEnd, setWorkdayEnd] = useState(19);
   const [weekStartsOn, setWeekStartsOn] = useState('1');
@@ -126,7 +127,7 @@ export default function SettingsPage() {
     setTimezone(o.timezone || 'Europe/Paris');
     setLanguage(o.language || 'fr');
     setTheme(o.theme || 'light');
-    setPrimaryColor(o.primaryColor || '#5b4fcf');
+    setPrimaryColor(o.primaryColor || '#e10600');
     setWorkdayStart(o.workdayStart ?? 7);
     setWorkdayEnd(o.workdayEnd ?? 19);
     setWeekStartsOn(String(o.weekStartsOn ?? 1));

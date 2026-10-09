@@ -63,13 +63,13 @@ export function applyOrgBranding(org?: OrgBranding | null) {
 
   const primary = org?.primaryColor && /^#([0-9a-fA-F]{6})$/.test(org.primaryColor)
     ? org.primaryColor
-    : '#5b4fcf';
+    : '#e10600';
 
   if (mode === 'dark') {
     root.style.setProperty('--primary', lighten(primary, 0.28));
     root.style.setProperty('--primary-hover', lighten(primary, 0.4));
-    root.style.setProperty('--primary-soft', mix(primary, '#181522', 0.82));
-    root.style.setProperty('--primary-ink', '#120f28');
+    root.style.setProperty('--primary-soft', mix(primary, '#141414', 0.82));
+    root.style.setProperty('--primary-ink', '#ffffff');
   } else {
     root.style.setProperty('--primary', primary);
     root.style.setProperty('--primary-hover', darken(primary, 0.12));
@@ -91,6 +91,6 @@ export function loadCachedBranding(): OrgBranding {
   if (typeof window === 'undefined') return {};
   return {
     theme: localStorage.getItem('fieldops.orgTheme') ?? 'light',
-    primaryColor: localStorage.getItem('fieldops.orgPrimary') ?? '#5b4fcf',
+    primaryColor: localStorage.getItem('fieldops.orgPrimary') ?? '#e10600',
   };
 }

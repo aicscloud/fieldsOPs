@@ -88,7 +88,7 @@ model Organization {
   timezone        String   @default("Europe/Paris")
   language        String   @default("fr")
   theme           String   @default("light") // light | dark | system
-  primaryColor    String   @default("#5b4fcf")
+  primaryColor    String   @default("#e10600")
   workdayStart    Int      @default(7)
   workdayEnd      Int      @default(19)
   weekStartsOn    Int      @default(1) // 0=dimanche, 1=lundi
