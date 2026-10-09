@@ -435,14 +435,14 @@ export default function WorkOrdersClient() {
       actions={
         <Button type="button" onClick={() => setCreateOpen(true)}>
           <Plus size={16} />
-          Nouvelle intervention
+          Créer une intervention
         </Button>
       }
     >
       <Toast message={toast} onClose={() => setToast(null)} />
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
 
-      <Modal open={createOpen} title="Nouvelle intervention" onClose={closeCreate} size="lg">
+      <Modal open={createOpen} title="Nouvelle intervention" onClose={closeCreate} size="xl">
         {createOpen ? (
           <QuickCreateWorkOrder
             onCreated={() => {
@@ -579,7 +579,12 @@ export default function WorkOrdersClient() {
           empty={
             <EmptyState
               title="Aucune intervention"
-              description="Créez une intervention avec le bouton ci-dessus."
+              description="Créez une intervention. Le client, le site et le technicien s’ajoutent dans la même fenêtre."
+              action={
+                <Button type="button" onClick={() => setCreateOpen(true)}>
+                  Créer une intervention
+                </Button>
+              }
             />
           }
           columns={[

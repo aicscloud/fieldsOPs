@@ -27,6 +27,7 @@ import {
   MapPin,
   Package,
   Phone,
+  Plus,
   StickyNote,
   Tag,
   UserRound,
@@ -34,8 +35,9 @@ import {
   Wrench,
 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
+import { QuickCreateWorkOrder } from '@/components/QuickCreateWorkOrder';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Avatar, Button, Drawer, EmptyState, PageLoading, StatusBadge, Toast } from '@/components/ui';
+import { Avatar, Button, Drawer, EmptyState, Modal, PageLoading, StatusBadge, Toast } from '@/components/ui';
 import { api } from '@/lib/api';
 import {
   PRIORITY_FILTER_OPTIONS,
@@ -378,6 +380,7 @@ export default function PlanningPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>('day');
@@ -707,8 +710,26 @@ export default function PlanningPage() {
         : formatDayLabel(cursor, true);
 
   return (
-    <AppShell title="Planning">
+    <AppShell
+      title="Planning"
+      actions={
+        <Button type="button" onClick={() => setCreateOpen(true)}>
+          <Plus size={16} />
+          Créer une intervention
+        </Button>
+      }
+    >
       <Toast message={toast} onClose={() => setToast(null)} />
+      <Modal open={createOpen} title="Nouvelle intervention" onClose={() => setCreateOpen(false)} size="xl">
+        {createOpen ? (
+          <QuickCreateWorkOrder
+            onCreated={() => {
+              setCreateOpen(false);
+              void load();
+            }}
+          />
+        ) : null}
+      </Modal>
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
 
       <div className="plan-workspace">
@@ -1104,7 +1125,12 @@ export default function PlanningPage() {
                           <div className="plan-empty-board">
                             <EmptyState
                               title="Aucune intervention planifiée"
-                              description="Glissez une mission depuis la file, ou affectez un technicien."
+                              description="Créez une intervention, ou affectez-en une depuis la file."
+                              action={
+                                <Button type="button" onClick={() => setCreateOpen(true)}>
+                                  Créer une intervention
+                                </Button>
+                              }
                             />
                           </div>
                         )}

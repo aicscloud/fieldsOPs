@@ -774,6 +774,7 @@ b {
 }
 
 .input,
+select.input,
 .textarea {
   width: 100%;
   border-radius: var(--radius-md);
@@ -1046,6 +1047,10 @@ b {
 
 .modal-lg {
   width: min(760px, 100%);
+}
+
+.modal-xl {
+  width: min(960px, 100%);
 }
 
 .modal-header,
@@ -1597,6 +1602,153 @@ b {
   display: grid;
   gap: 12px;
 }
+
+.wo-create {
+  display: grid;
+  gap: 14px;
+}
+
+.wo-intro {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.wo-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wo-step {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  column-gap: 12px;
+}
+
+.wo-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.wo-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wo-step.is-open .wo-dot,
+.wo-step.is-done .wo-dot {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.wo-step.is-done .wo-dot {
+  background: var(--primary);
+  color: #fff;
+}
+
+.wo-line {
+  width: 2px;
+  flex: 1;
+  min-height: 12px;
+  margin: 4px 0;
+  background: var(--line);
+}
+
+.wo-step.is-done .wo-line {
+  background: var(--primary);
+}
+
+.wo-step-main {
+  min-width: 0;
+  padding-bottom: 14px;
+}
+
+.wo-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wo-step-head strong {
+  font-size: 0.95rem;
+}
+
+.wo-step-summary {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.wo-step-edit {
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+
+.wo-step-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.wo-inline-link {
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.wo-inline {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.wo-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
 
 .chips {
   display: flex;

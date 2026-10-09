@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { Plus } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
-import { Card, Skeleton, Spinner, StatusBadge } from '@/components/ui';
+import { QuickCreateWorkOrder } from '@/components/QuickCreateWorkOrder';
+import { Button, Card, Modal, Skeleton, Spinner, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Stats = {
@@ -75,6 +77,7 @@ export default function DashboardPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -171,8 +174,26 @@ export default function DashboardPage() {
   });
 
   return (
-    <AppShell title="Activité">
+    <AppShell
+      title="Activité"
+      actions={
+        <Button type="button" onClick={() => setCreateOpen(true)}>
+          <Plus size={16} />
+          Créer une intervention
+        </Button>
+      }
+    >
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
+      <Modal open={createOpen} title="Nouvelle intervention" onClose={() => setCreateOpen(false)} size="xl">
+        {createOpen ? (
+          <QuickCreateWorkOrder
+            onCreated={() => {
+              setCreateOpen(false);
+              refresh();
+            }}
+          />
+        ) : null}
+      </Modal>
       <p className="dash-date">{dateLabel}</p>
       {loading ? <Spinner /> : null}
 
