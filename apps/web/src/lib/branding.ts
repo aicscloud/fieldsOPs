@@ -63,7 +63,7 @@ export function applyOrgBranding(org?: OrgBranding | null) {
 
   const primary = org?.primaryColor && /^#([0-9a-fA-F]{6})$/.test(org.primaryColor)
     ? org.primaryColor
-    : '#e10600';
+    : '#143d4f';
 
   if (mode === 'dark') {
     root.style.setProperty('--primary', lighten(primary, 0.28));
@@ -91,6 +91,6 @@ export function loadCachedBranding(): OrgBranding {
   if (typeof window === 'undefined') return {};
   return {
     theme: localStorage.getItem('fieldops.orgTheme') ?? 'light',
-    primaryColor: localStorage.getItem('fieldops.orgPrimary') ?? '#e10600',
+    primaryColor: localStorage.getItem('fieldops.orgPrimary') ?? '#143d4f',
   };
 }

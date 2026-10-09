@@ -5,7 +5,7 @@ const COLORS: Record<string, string> = {
   SCHEDULED: '#3b6fd4',
   ASSIGNED: '#111111',
   EN_ROUTE: '#0f9aa8',
-  IN_PROGRESS: '#e10600',
+  IN_PROGRESS: '#143d4f',
   PAUSED: '#c9891a',
   COMPLETED: '#2f9e6b',
   CANCELLED: '#9aa3ad',

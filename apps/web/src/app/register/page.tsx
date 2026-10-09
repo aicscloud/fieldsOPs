@@ -5,7 +5,6 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, saveSession, type AuthSession } from '@/lib/api';
 import { Brand } from '@/components/Brand';
-import { ProductBoard } from '@/components/ProductBoard';
 import { Button, Input, PasswordInput, Select } from '@/components/ui';
 
 export default function RegisterPage() {
@@ -80,10 +79,11 @@ export default function RegisterPage() {
         </div>
       </section>
       <aside className="auth-panel">
-        <div className="auth-stage">
-          <p>Planning, terrain et factures, dès le premier jour.</p>
-          <ProductBoard />
-        </div>
+        <img
+          src="/brand/technician.jpg"
+          alt="Technicien relevant une intervention sur tablette, devant un climatiseur."
+        />
+        <p>Planning, terrain et factures, dès le premier jour.</p>
       </aside>
     </main>
   );

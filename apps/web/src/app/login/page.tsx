@@ -5,7 +5,6 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getSession, saveSession, type AuthSession } from '@/lib/api';
 import { Brand } from '@/components/Brand';
-import { ProductBoard } from '@/components/ProductBoard';
 import { Button, Input, PasswordInput } from '@/components/ui';
 
 export default function LoginPage() {
@@ -83,10 +82,11 @@ export default function LoginPage() {
         </div>
       </section>
       <aside className="auth-panel">
-        <div className="auth-stage">
-          <p>La journée de l’équipe, avant même d’ouvrir le planning.</p>
-          <ProductBoard />
-        </div>
+        <img
+          src="/brand/dispatch.jpg"
+          alt="Responsable d’exploitation devant son planning, dans un bureau."
+        />
+        <p>La journée de l’équipe, avant même d’ouvrir le planning.</p>
       </aside>
     </main>
   );

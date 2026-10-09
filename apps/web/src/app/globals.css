@@ -1,7 +1,7 @@
 :root {
-  --primary: #e10600;
-  --primary-hover: #b80500;
-  --primary-soft: #ffe8e5;
+  --primary: #143d4f;
+  --primary-hover: #0c2a38;
+  --primary-soft: #e6eef2;
   --primary-ink: #ffffff;
 
   --bg: #f4f4f4;
@@ -25,7 +25,7 @@
   --status-scheduled: #3b6fd4;
   --status-assigned: #111111;
   --status-enroute: #0f9aa8;
-  --status-progress: #e10600;
+  --status-progress: #143d4f;
   --status-paused: #c9891a;
   --status-completed: #2f9e6b;
   --status-cancelled: #9aa3ad;
@@ -43,13 +43,13 @@
   --sidebar-w-collapsed: 76px;
   --topbar-h: 64px;
   --transition: 160ms ease;
-  --focus: 0 0 0 3px rgba(225, 6, 0, 0.28);
+  --focus: 0 0 0 3px rgba(20, 61, 79, 0.28);
 }
 
 [data-theme="dark"] {
-  --primary: #ff2a22;
-  --primary-hover: #ff554e;
-  --primary-soft: #3a1210;
+  --primary: #3d6d82;
+  --primary-hover: #4e849c;
+  --primary-soft: #1a2c34;
   --primary-ink: #ffffff;
   --bg: #0a0a0a;
   --surface: #141414;
@@ -85,7 +85,7 @@
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(225, 6, 0, 0.45);
+  background: rgba(20, 61, 79, 0.45);
 }
 
 /* Masquées mais scrollables */
@@ -142,7 +142,7 @@ b {
 
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(225, 6, 0, 0.28);
+  box-shadow: 0 0 0 3px rgba(20, 61, 79, 0.28);
 }
 
 .app-shell {
@@ -1125,27 +1125,31 @@ b {
   position: relative;
   min-height: 0;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 48px;
-  background:
-    radial-gradient(720px 380px at 75% 12%, rgba(225, 6, 0, 0.38), transparent 62%),
-    #0a0a0a;
+  background: #0a0a0a;
 }
 
-.auth-stage {
-  width: min(720px, 100%);
-  display: grid;
-  gap: 18px;
+.auth-panel img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.auth-stage > p {
+.auth-panel p {
+  position: absolute;
+  left: 36px;
+  right: 36px;
+  bottom: 36px;
   margin: 0;
-  color: #e4dff6;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
-  max-width: 28ch;
+  max-width: 18ch;
+  color: #ffffff;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
 
 .auth-card {
@@ -1181,9 +1185,7 @@ b {
   overflow: auto;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(880px 420px at 88% -8%, rgba(225, 6, 0, 0.18), transparent 58%),
-    var(--bg);
+  background: var(--bg);
 }
 
 .site-nav {
@@ -1191,8 +1193,10 @@ b {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 32px;
+  padding: 18px 40px;
   flex-wrap: wrap;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
 .site-nav nav {
@@ -1206,16 +1210,16 @@ b {
 }
 
 .site-hero {
-  width: min(1180px, calc(100% - 64px));
+  width: min(1560px, calc(100% - 80px));
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(280px, 0.86fr) minmax(420px, 1.14fr);
-  gap: 48px;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(480px, 1.15fr);
+  gap: 56px;
   align-items: center;
-  min-height: calc(100dvh - 88px);
+  padding: 48px 0 36px;
 }
 
-.site-kicker {
+.site-copy .site-kicker {
   margin: 0 0 10px;
   color: var(--primary);
   font-size: 0.82rem;
@@ -1225,19 +1229,17 @@ b {
 
 .site-copy h1 {
   margin: 0;
-  font-size: clamp(2rem, 3.4vw, 3.1rem);
-  line-height: 1.12;
+  font-size: clamp(2.2rem, 3.6vw, 3.4rem);
+  line-height: 1.08;
   letter-spacing: -0.035em;
   font-weight: 600;
-  max-width: 14ch;
 }
 
-.site-copy > p:last-of-type {
-  margin: 16px 0 0;
+.site-copy p {
+  margin: 14px 0 0;
   color: var(--muted);
   font-size: 1.05rem;
-  max-width: 38ch;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .site-actions {
@@ -1248,12 +1250,12 @@ b {
 }
 
 .site-points {
-  width: min(1180px, calc(100% - 64px));
-  margin: 0 auto;
-  padding: 8px 0 32px;
+  width: min(1560px, calc(100% - 80px));
+  margin: 8px auto 20px;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
 }
 
 .site-points article {
@@ -1292,15 +1294,16 @@ b {
 }
 
 .site-photo img {
-  min-height: 420px;
-  max-height: 560px;
+  min-height: 460px;
+  max-height: 620px;
 }
 
 .site-band,
 .site-split,
 .site-faq,
-.site-doc {
-  width: min(1180px, calc(100% - 64px));
+.site-doc,
+.site-close-inner {
+  width: min(1560px, calc(100% - 80px));
   margin: 0 auto;
 }
 
@@ -1329,14 +1332,14 @@ b {
 
 .site-split {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 36px;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 48px;
   align-items: center;
-  padding: 28px 0;
+  padding: 36px 0;
 }
 
 .site-split img {
-  height: 340px;
+  height: 440px;
   border-radius: 16px;
   object-fit: cover;
 }
@@ -1346,12 +1349,49 @@ b {
 }
 
 .site-split h2 {
-  font-size: 1.7rem;
-  max-width: 18ch;
+  font-size: 1.85rem;
 }
 
 .site-faq {
-  padding: 18px 0 36px;
+  padding: 12px 0 48px;
+}
+
+.site-faq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  align-items: start;
+}
+
+.site-close {
+  background: #0a0a0a;
+  color: #f5f5f5;
+  padding: 48px 0;
+}
+
+.site-close h2 {
+  margin: 0 0 8px;
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.site-close p {
+  margin: 0;
+  color: #c8c8c8;
+  max-width: 52ch;
+}
+
+.site-close-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.site-close .btn {
+  background: #ffffff;
+  color: #0a0a0a;
 }
 
 .site-faq h2 {
@@ -1382,7 +1422,7 @@ b {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 32px;
+  padding: 22px 40px;
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
@@ -2029,7 +2069,7 @@ b {
 
 .plan-day-label.is-today {
   color: var(--primary);
-  border-color: rgba(225, 6, 0, 0.35);
+  border-color: rgba(20, 61, 79, 0.35);
   background: var(--primary-soft);
 }
 
@@ -2169,7 +2209,7 @@ b {
 
 .plan-slot-wrap.is-over {
   background: var(--primary-soft);
-  box-shadow: inset 0 0 0 2px rgba(225, 6, 0, 0.35);
+  box-shadow: inset 0 0 0 2px rgba(20, 61, 79, 0.35);
 }
 
 .plan-slot-wrap.is-now-hour {
@@ -3862,6 +3902,8 @@ b {
   .site-hero,
   .site-points,
   .site-split,
+  .site-faq-grid,
+  .site-close-inner,
   .board-mock-cols {
     grid-template-columns: 1fr;
   }
@@ -3890,7 +3932,8 @@ b {
   .site-band,
   .site-split,
   .site-faq,
-  .site-doc {
+  .site-doc,
+  .site-close-inner {
     width: auto;
     padding-left: 20px;
     padding-right: 20px;
