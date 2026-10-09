@@ -16,8 +16,10 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 const PASSWORD = 'Demo1234!';
 const DEMO_EMAIL = 'demo@fieldops.app';
-const PRIMARY_JOBS = 840;
-const TARGET_JOBS = 1000;
+const PAST_DAYS = 365;
+const FUTURE_DAYS = 21;
+const JOBS_PER_WEEKDAY = 4;
+const DURATIONS_MIN = [240, 60, 480, 60];
 
 const FIRST_NAMES = [
   'Amadou', 'Fatou', 'Jean', 'Marie', 'Paul', 'Sophie', 'Ibrahim', 'Aïcha',
@@ -300,6 +302,36 @@ function atHour(day: Date, hour: number) {
   return d;
 }
 
+function catalogDuration(name: string) {
+  if (name.startsWith('Installation') || name.startsWith('Mise') || name.startsWith('Audit')) {
+    return 480;
+  }
+  if (
+    name.startsWith('Contrôle') ||
+    name.startsWith('Remplacement') ||
+    name.startsWith('Livraison') ||
+    name.startsWith('Inspection') ||
+    name.startsWith('Dépannage')
+  ) {
+    return 60;
+  }
+  return 240;
+}
+
+function workingDays(from: Date, to: Date) {
+  const days: Date[] = [];
+  const cursor = new Date(from);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(0, 0, 0, 0);
+  while (cursor <= end) {
+    const dow = cursor.getDay();
+    if (dow !== 0 && dow !== 6) days.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
 function fullName(i: number) {
   return {
     firstName: FIRST_NAMES[i % FIRST_NAMES.length],
@@ -475,7 +507,7 @@ async function main() {
       organizationId: org.id,
       name: c.name,
       description: c.description,
-      defaultDuration: c.defaultDuration,
+      defaultDuration: catalogDuration(c.name),
       requiresTransport: c.requiresTransport,
       active: true,
     })),
@@ -593,29 +625,45 @@ async function main() {
     customersByCity.set(city, list);
   });
 
-  console.log(`Interventions (${TARGET_JOBS})…`);
+  console.log('Interventions…');
   type Job = Prisma.WorkOrderCreateManyInput & {
     requiresTransport: boolean;
     city: string;
   };
   const jobs: Job[] = [];
-  const hours = [8, 11, 14];
   let seq = 1;
-  const yearStart = new Date();
-  yearStart.setMonth(0, 1);
-  yearStart.setHours(0, 0, 0, 0);
   const today0 = new Date();
   today0.setHours(0, 0, 0, 0);
-  const spanDays = Math.max(
-    1,
-    Math.round((today0.getTime() - yearStart.getTime()) / 86_400_000),
-  );
+  const rangeStart = new Date(today0);
+  rangeStart.setDate(rangeStart.getDate() - PAST_DAYS);
+  const rangeEnd = new Date(today0);
+  rangeEnd.setDate(rangeEnd.getDate() + FUTURE_DAYS);
+  const workDays = workingDays(rangeStart, rangeEnd);
+  const jobTotal = workDays.length * JOBS_PER_WEEKDAY;
+  const transportBudget = Math.round(jobTotal * 0.16);
 
-  for (let i = 0; i < PRIMARY_JOBS; i++) {
-    const worker = fieldWorkers[i % fieldWorkers.length];
-    const dayIndex = Math.min(spanDays, Math.floor((i * spanDays) / PRIMARY_JOBS));
-    const day = dayIndex - spanDays;
-    const hour = hours[i % 3];
+  const taken = new Map<string, Array<[number, number]>>();
+  function reserve(workerId: string, key: string, startMin: number, endMin: number) {
+    const slots = taken.get(`${workerId}|${key}`) ?? [];
+    if (slots.some(([from, to]) => startMin < to && endMin > from)) return false;
+    slots.push([startMin, endMin]);
+    taken.set(`${workerId}|${key}`, slots);
+    return true;
+  }
+
+  for (let i = 0; i < jobTotal; i++) {
+    const dayDate = workDays[Math.floor(i / JOBS_PER_WEEKDAY)];
+    const minutes = DURATIONS_MIN[i % DURATIONS_MIN.length];
+    const hour = minutes >= 480 ? 8 : minutes >= 240 ? (i % 2 === 0 ? 8 : 13) : [8, 10, 14, 16][i % 4];
+    const dayDelta = Math.round((dayDate.getTime() - today0.getTime()) / 86_400_000);
+    const slotKey = `${dayDate.getFullYear()}-${dayDate.getMonth()}-${dayDate.getDate()}`;
+    const startMin = hour * 60;
+    const endMin = startMin + minutes;
+    let worker = fieldWorkers[i % fieldWorkers.length];
+    if (!reserve(worker.id, slotKey, startMin, endMin)) {
+      const free = fieldWorkers.find((candidate) => reserve(candidate.id, slotKey, startMin, endMin));
+      if (free) worker = free;
+    }
     const covered =
       worker.city === 'Douala'
         ? ['Douala', 'Limbé', 'Kribi']
@@ -627,20 +675,23 @@ async function main() {
     const site = customerSites[i % customerSites.length];
     const category = CATEGORIES[i % CATEGORIES.length];
     const type = typeByName.get(category.name)!;
-    const draft = i % 28 === 0;
-    const start = draft ? null : atHour(dayOffset(day), hour);
-    const end = start ? new Date(start.getTime() + category.defaultDuration * 60_000) : null;
+    const needsDispatch = dayDelta >= 0 && i % 17 === 0;
+    const start = atHour(dayDate, hour);
+    const end = new Date(start.getTime() + minutes * 60_000);
     let status: WorkOrderStatus = WorkOrderStatus.ASSIGNED;
-    if (draft) status = WorkOrderStatus.DRAFT;
-    else if (day < -1) {
-      if (i % 23 === 0) status = WorkOrderStatus.CANCELLED;
-      else if (i % 29 === 0) status = WorkOrderStatus.FAILED;
+    if (needsDispatch) status = WorkOrderStatus.SCHEDULED;
+    else if (dayDelta < 0) {
+      if (i % 37 === 0) status = WorkOrderStatus.CANCELLED;
+      else if (i % 43 === 0) status = WorkOrderStatus.FAILED;
       else status = WorkOrderStatus.COMPLETED;
-    } else if (day <= 0) {
-      status = [WorkOrderStatus.ASSIGNED, WorkOrderStatus.EN_ROUTE, WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.PAUSED][
-        (i + hour) % 4
-      ];
-    } else if (i % 6 === 0) {
+    } else if (dayDelta === 0) {
+      status = [
+        WorkOrderStatus.ASSIGNED,
+        WorkOrderStatus.EN_ROUTE,
+        WorkOrderStatus.IN_PROGRESS,
+        WorkOrderStatus.PAUSED,
+      ][(i + hour) % 4];
+    } else if (i % 5 === 0) {
       status = WorkOrderStatus.SCHEDULED;
     }
 
@@ -655,7 +706,7 @@ async function main() {
 
     jobs.push({
       organizationId: org.id,
-      number: `WO-2026-${pad(seq++, 5)}`,
+      number: `WO-${dayDate.getFullYear()}-${pad(seq++, 5)}`,
       title: `${category.name} — ${customer.name}`,
       description: category.note,
       customerId: customer.id,
@@ -664,14 +715,14 @@ async function main() {
       priority,
       status,
       team: TeamGroup.FIELD,
-      assignedToId: draft ? null : worker.id,
+      assignedToId: needsDispatch ? null : worker.id,
       scheduledStart: start,
       scheduledEnd: end,
-      estimatedMinutes: category.defaultDuration,
+      estimatedMinutes: minutes,
       startedAt:
         status === WorkOrderStatus.IN_PROGRESS || status === WorkOrderStatus.COMPLETED ? start : null,
       completedAt: status === WorkOrderStatus.COMPLETED ? end : null,
-      requiresTransport: category.requiresTransport && !draft && !!start,
+      requiresTransport: category.requiresTransport && !needsDispatch,
       city: worker.city,
     });
   }
@@ -687,7 +738,7 @@ async function main() {
   const busy = new Set<string>();
   const children: Prisma.WorkOrderCreateManyInput[] = [];
   for (const job of jobs) {
-    if (children.length >= TARGET_JOBS - jobs.length) break;
+    if (children.length >= transportBudget) break;
     if (!job.requiresTransport || !job.assignedToId || !job.scheduledStart || !job.scheduledEnd) continue;
     const parent = parentByNumber.get(job.number);
     if (!parent) continue;
@@ -699,22 +750,35 @@ async function main() {
     const transporter = candidates.find((t) => !busy.has(`${t.id}|${dayKey}|${keyHour}`));
     if (!transporter) continue;
     busy.add(`${transporter.id}|${dayKey}|${keyHour}`);
+    const childStatus =
+      job.status === WorkOrderStatus.COMPLETED
+        ? WorkOrderStatus.COMPLETED
+        : job.status === WorkOrderStatus.CANCELLED
+          ? WorkOrderStatus.CANCELLED
+          : job.status === WorkOrderStatus.FAILED
+            ? WorkOrderStatus.FAILED
+            : job.status === WorkOrderStatus.EN_ROUTE || job.status === WorkOrderStatus.IN_PROGRESS
+              ? WorkOrderStatus.EN_ROUTE
+              : WorkOrderStatus.ASSIGNED;
+    const childEnd = new Date(start.getTime() + 60 * 60_000);
     children.push({
       organizationId: org.id,
-      number: `WO-2026-${pad(seq++, 5)}`,
+      number: `WO-${start.getFullYear()}-${pad(seq++, 5)}`,
       title: `Transport — ${job.title.replace(/^.*? — /, '')}`,
       description: `Livraison du matériel pour ${job.number}.`,
       customerId: job.customerId,
       siteId: job.siteId,
       typeId: job.typeId,
       priority: job.priority,
-      status: WorkOrderStatus.ASSIGNED,
+      status: childStatus,
       team: TeamGroup.TRANSPORT,
       parentId: parent.id,
       assignedToId: transporter.id,
       scheduledStart: start,
-      scheduledEnd: new Date(start.getTime() + 60 * 60_000),
+      scheduledEnd: childEnd,
       estimatedMinutes: 60,
+      startedAt: childStatus === WorkOrderStatus.COMPLETED ? start : null,
+      completedAt: childStatus === WorkOrderStatus.COMPLETED ? childEnd : null,
     });
   }
 
@@ -808,22 +872,27 @@ async function main() {
   });
 
   console.log('Factures et liens portail…');
-  const billed = completed.slice(0, 60);
+  const billed = [...completed].reverse().slice(0, 80);
   for (let i = 0; i < billed.length; i++) {
     const job = jobs.find((row) => parentByNumber.get(row.number)?.id === billed[i].id) ?? jobs[i];
     const kind = i % 3 === 0 ? DocumentKind.QUOTE : DocumentKind.INVOICE;
-    const hoursBilled = (job?.estimatedMinutes ?? 90) / 60;
+    const hoursBilled = (job?.estimatedMinutes ?? 60) / 60;
     const labor = Math.round(hoursBilled * 8500);
     const travel = 5000;
     const subtotal = labor + travel;
     const taxRate = 19.25;
     const total = Math.round(subtotal * (1 + taxRate / 100));
+    const rawStart = billed[i].scheduledStart;
+    const issued = rawStart ? new Date(rawStart) : dayOffset(-30);
+    const due = new Date(issued);
+    due.setDate(due.getDate() + 15);
+    const recent = today0.getTime() - issued.getTime() < 21 * 86_400_000;
     const status =
       kind === DocumentKind.QUOTE
-        ? i % 2 === 0
+        ? recent
           ? DocumentStatus.SENT
           : DocumentStatus.ACCEPTED
-        : i % 4 === 0
+        : recent && i % 2 === 0
           ? DocumentStatus.SENT
           : DocumentStatus.PAID;
     await prisma.billingDocument.create({
@@ -832,15 +901,15 @@ async function main() {
         customerId: job?.customerId ?? createdCustomers[i % createdCustomers.length].id,
         workOrderId: billed[i].id,
         kind,
-        number: `${kind === DocumentKind.INVOICE ? 'FAC' : 'DEV'}-2026-${pad(i + 1, 5)}`,
+        number: `${kind === DocumentKind.INVOICE ? 'FAC' : 'DEV'}-${issued.getFullYear()}-${pad(i + 1, 5)}`,
         status,
         title: `${kind === DocumentKind.INVOICE ? 'Facture' : 'Devis'} ${billed[i].number}`,
         currency: 'XAF',
         subtotal,
         taxRate,
         total,
-        issuedAt: dayOffset(-((i % 20) + 1)),
-        dueAt: dayOffset(15),
+        issuedAt: issued,
+        dueAt: due,
         lines: {
           create: [
             { label: 'Main d\'œuvre', quantity: hoursBilled, unitPrice: 8500, sortOrder: 0 },

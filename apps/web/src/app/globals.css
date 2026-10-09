@@ -378,11 +378,110 @@ b {
   color: var(--danger);
 }
 
-.dash-layout {
+.dash-date {
+  margin: -8px 0 14px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-transform: capitalize;
+}
+
+.dash-metrics {
   display: grid;
-  grid-template-columns: 1.35fr 0.85fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dash-metric-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-metric-link:hover .card {
+  border-color: var(--line-strong);
+}
+
+.dash-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 6px;
+}
+
+.dash-metric strong {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.dash-metric strong.dash-money {
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.dash-metric em {
+  display: block;
+  margin-top: 6px;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.dash-metric.is-alert strong,
+.dash-metric.is-alert em {
+  color: var(--danger);
+}
+
+.dash-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.dash-day {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.dash-day.is-today {
+  border-color: var(--ink);
+}
+
+.dash-day small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: capitalize;
+}
+
+.dash-day b {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.dash-day b.is-zero {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.ops-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.72fr);
   gap: 14px;
   align-items: start;
+}
+
+.ops-side {
+  display: grid;
+  gap: 14px;
 }
 
 .dash-head {
@@ -395,7 +494,8 @@ b {
 
 .dash-head h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .dash-head a {
@@ -403,14 +503,10 @@ b {
   color: var(--muted);
 }
 
-.dash-list {
+.ops-job {
   display: grid;
-}
-
-.dash-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(88px, 130px) auto;
+  gap: 10px;
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
@@ -418,23 +514,32 @@ b {
   text-decoration: none;
 }
 
-.dash-row:last-child {
+.ops-job:last-child {
   border-bottom: 0;
   padding-bottom: 0;
 }
 
-.dash-row:hover .dash-title {
-  color: var(--primary);
+.ops-job time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
-.dash-title {
+.ops-job.is-late time {
+  color: var(--danger);
+}
+
+.ops-job strong {
+  display: block;
+  font-weight: 500;
   font-size: 0.88rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dash-meta {
+.ops-job small {
+  display: block;
   margin-top: 2px;
   color: var(--muted);
   font-size: 0.75rem;
@@ -443,49 +548,53 @@ b {
   text-overflow: ellipsis;
 }
 
-.dash-statuses {
-  display: grid;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.dash-status {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) 32px;
-  gap: 8px;
-  align-items: center;
-  font-size: 0.78rem;
+.ops-who {
+  font-size: 0.8rem;
   color: var(--muted);
-}
-
-.dash-bar {
-  height: 6px;
-  border-radius: 99px;
-  background: var(--surface-2);
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.dash-bar > span {
-  display: block;
-  height: 100%;
-  border-radius: 99px;
+.ops-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.86rem;
 }
 
-.dash-note {
-  margin: 14px 0 0;
+.ops-line:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ops-line span {
   color: var(--muted);
-  font-size: 0.8rem;
 }
 
-.dash-foot {
-  margin-top: 14px;
-  color: var(--muted);
-  font-size: 0.8rem;
+.ops-line b {
+  font-weight: 500;
 }
 
 @media (max-width: 1100px) {
-  .dash-layout {
+  .dash-metrics,
+  .ops-board {
     grid-template-columns: 1fr;
+  }
+
+  .dash-week {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ops-job {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+  }
+
+  .ops-who {
+    display: none;
   }
 }
 

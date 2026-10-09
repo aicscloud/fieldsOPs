@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
-import { Card, EmptyState, Skeleton, StatusBadge } from '@/components/ui';
+import { Card, Skeleton, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Stats = {
@@ -22,42 +22,48 @@ type WorkOrder = {
   number: string;
   title: string;
   status: string;
-  priority?: string | null;
   scheduledStart?: string | null;
   scheduledEnd?: string | null;
   customer?: { name: string };
-  site?: { name: string; city?: string | null } | null;
+  site?: { city?: string | null } | null;
   assignedTo?: { firstName: string; lastName: string } | null;
 };
 
+type Doc = {
+  kind: string;
+  status: string;
+  total: number;
+  currency: string;
+};
+
 const DONE = new Set(['COMPLETED', 'CANCELLED', 'FAILED']);
-const OPEN_STATUSES = ['DRAFT', 'SCHEDULED', 'ASSIGNED', 'EN_ROUTE', 'IN_PROGRESS', 'PAUSED'];
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Brouillon',
-  SCHEDULED: 'Planifiée',
-  ASSIGNED: 'Affectée',
-  EN_ROUTE: 'En route',
-  IN_PROGRESS: 'En cours',
-  PAUSED: 'En pause',
-};
-const STATUS_COLOR: Record<string, string> = {
-  DRAFT: '#8a96a3',
-  SCHEDULED: '#3b6fd4',
-  ASSIGNED: '#5b4fcf',
-  EN_ROUTE: '#0f9aa8',
-  IN_PROGRESS: '#5b4fcf',
-  PAUSED: '#c9891a',
-};
+const LIVE = new Set(['EN_ROUTE', 'IN_PROGRESS', 'PAUSED']);
 
 function dayKey(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-function formatWhen(iso?: string | null) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function money(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency || 'XAF',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${Math.round(amount).toLocaleString('fr-FR')} ${currency}`;
+  }
+}
+
+function clock(iso?: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -66,7 +72,7 @@ function formatWhen(iso?: string | null) {
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<WorkOrder[]>([]);
-  const [counts, setCounts] = useState({ customers: 0, sites: 0, team: 0 });
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,18 +81,12 @@ export default function DashboardPage() {
     Promise.all([
       api<Stats>('/work-orders/stats'),
       api<WorkOrder[]>('/work-orders'),
-      api<unknown[]>('/customers'),
-      api<unknown[]>('/sites'),
-      api<unknown[]>('/users'),
+      api<Doc[]>('/billing').catch(() => [] as Doc[]),
     ])
-      .then(([s, list, customers, sites, users]) => {
+      .then(([s, list, billing]) => {
         setStats(s);
         setOrders(list);
-        setCounts({
-          customers: customers.length,
-          sites: sites.length,
-          team: users.length,
-        });
+        setDocs(billing);
         setError(null);
       })
       .catch((err: Error) => setError(err.message))
@@ -100,163 +100,223 @@ export default function DashboardPage() {
   const now = useMemo(() => new Date(), [orders]);
   const today = dayKey(now);
 
-  const attention = useMemo(() => {
+  const week = useMemo(() => {
+    const start = startOfDay(now);
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      const key = dayKey(day);
+      const count = orders.filter(
+        (o) =>
+          o.status !== 'CANCELLED' &&
+          o.scheduledStart &&
+          dayKey(new Date(o.scheduledStart)) === key,
+      ).length;
+      return { day, count, today: i === 0 };
+    });
+  }, [orders, now]);
+
+  const queue = useMemo(() => {
     return orders
       .filter((o) => !DONE.has(o.status))
       .map((o) => {
         const end = o.scheduledEnd ? new Date(o.scheduledEnd) : null;
         const start = o.scheduledStart ? new Date(o.scheduledStart) : null;
-        return {
-          ...o,
-          late: !!end && end < now,
-          today: !!start && dayKey(start) === today,
-          startMs: start?.getTime() ?? Number.POSITIVE_INFINITY,
-        };
+        const late = !!end && end < now;
+        const live = LIVE.has(o.status);
+        const isToday = !!start && dayKey(start) === today;
+        const unassigned = !o.assignedTo;
+        return { ...o, late, live, isToday, unassigned, startMs: start?.getTime() ?? Number.POSITIVE_INFINITY };
       })
+      .filter((o) => o.late || o.live || o.isToday || o.unassigned)
       .sort((a, b) => {
+        if (a.live !== b.live) return a.live ? -1 : 1;
         if (a.late !== b.late) return a.late ? -1 : 1;
-        if (a.today !== b.today) return a.today ? -1 : 1;
+        if (a.isToday !== b.isToday) return a.isToday ? -1 : 1;
         return a.startMs - b.startMs;
       })
-      .slice(0, 6);
+      .slice(0, 8);
   }, [orders, now, today]);
 
-  const openByStatus = useMemo(() => {
-    const map: Record<string, number> = {};
+  const load = useMemo(() => {
+    const end = startOfDay(now);
+    end.setDate(end.getDate() + 7);
+    const map = new Map<string, number>();
     for (const order of orders) {
-      if (!OPEN_STATUSES.includes(order.status)) continue;
-      map[order.status] = (map[order.status] ?? 0) + 1;
+      if (!order.assignedTo || !order.scheduledStart || order.status === 'CANCELLED') continue;
+      const start = new Date(order.scheduledStart);
+      if (start < startOfDay(now) || start >= end) continue;
+      const name = `${order.assignedTo.firstName} ${order.assignedTo.lastName}`;
+      map.set(name, (map.get(name) ?? 0) + 1);
     }
-    return OPEN_STATUSES.filter((status) => map[status]).map(
-      (status) => [status, map[status]] as const,
-    );
-  }, [orders]);
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [orders, now]);
 
-  const openMax = Math.max(1, ...openByStatus.map(([, n]) => n));
+  const billing = useMemo(() => {
+    const openInvoices = docs.filter(
+      (d) => d.kind === 'INVOICE' && d.status !== 'PAID' && d.status !== 'CANCELLED',
+    );
+    const openQuotes = docs.filter(
+      (d) => d.kind === 'QUOTE' && d.status !== 'REJECTED' && d.status !== 'CANCELLED',
+    );
+    const currency = openInvoices[0]?.currency || docs[0]?.currency || 'XAF';
+    const due = openInvoices.reduce((sum, d) => sum + d.total, 0);
+    return { count: openInvoices.length, due, currency, quotes: openQuotes.length };
+  }, [docs]);
+
+  const dateLabel = now.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   return (
     <AppShell title="Activité">
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
+      <p className="dash-date">{dateLabel}</p>
 
       {loading ? (
-        <div className="kpi-grid" style={{ marginBottom: 14 }}>
+        <div className="dash-metrics">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} height={88} />
+            <Skeleton key={i} height={84} />
           ))}
         </div>
       ) : (
-        <div className="kpi-grid" style={{ marginBottom: 14 }}>
-          <Card className="kpi">
-            <div className="kpi-label">Aujourd’hui</div>
-            <div className="kpi-value">{stats?.today ?? 0}</div>
-            <div className="kpi-trend" style={{ color: 'var(--muted)' }}>planifiées ce jour</div>
-          </Card>
-          <Card className="kpi">
-            <div className="kpi-label">En cours</div>
-            <div className="kpi-value">{stats?.inProgress ?? 0}</div>
-            <div className="kpi-trend" style={{ color: 'var(--muted)' }}>sur le terrain</div>
-          </Card>
-          <Card className="kpi">
-            <div className="kpi-label">En retard</div>
-            <div className="kpi-value">{stats?.overdue ?? 0}</div>
-            <div
-              className={`kpi-trend ${(stats?.overdue ?? 0) > 0 ? 'down' : ''}`}
-              style={(stats?.overdue ?? 0) > 0 ? undefined : { color: 'var(--muted)' }}
-            >
-              échéance dépassée
-            </div>
-          </Card>
-          <Card className="kpi">
-            <div className="kpi-label">Sans technicien</div>
-            <div className="kpi-value">{stats?.unassigned ?? 0}</div>
-            <div className="kpi-trend" style={{ color: 'var(--muted)' }}>encore ouvertes</div>
-          </Card>
+        <div className="dash-metrics">
+          <Link href="/planning" className="dash-metric-link">
+            <Card className="dash-metric">
+              <span>Aujourd’hui</span>
+              <strong>{stats?.today ?? 0}</strong>
+              <em>au planning</em>
+            </Card>
+          </Link>
+          <Link href="/work-orders" className="dash-metric-link">
+            <Card className="dash-metric">
+              <span>À affecter</span>
+              <strong>{stats?.unassigned ?? 0}</strong>
+              <em>sans technicien</em>
+            </Card>
+          </Link>
+          <Link href="/planning" className="dash-metric-link">
+            <Card className={`dash-metric ${(stats?.overdue ?? 0) > 0 ? 'is-alert' : ''}`}>
+              <span>En retard</span>
+              <strong>{stats?.overdue ?? 0}</strong>
+              <em>échéance dépassée</em>
+            </Card>
+          </Link>
+          <Link href="/billing" className="dash-metric-link">
+            <Card className="dash-metric">
+              <span>À encaisser</span>
+              <strong className="dash-money">{money(billing.due, billing.currency)}</strong>
+              <em>
+                {billing.count} facture{billing.count > 1 ? 's' : ''} ouverte{billing.count > 1 ? 's' : ''}
+              </em>
+            </Card>
+          </Link>
         </div>
       )}
 
-      <div className="dash-layout">
+      <div className="dash-week" aria-label="Sept prochains jours">
+        {(loading ? Array.from({ length: 7 }, () => null) : week).map((cell, i) =>
+          cell ? (
+            <div key={cell.day.toISOString()} className={`dash-day ${cell.today ? 'is-today' : ''}`}>
+              <small>
+                {cell.day.toLocaleDateString('fr-FR', { weekday: 'short' })}{' '}
+                {cell.day.getDate()}
+              </small>
+              <b className={cell.count === 0 ? 'is-zero' : ''}>{cell.count}</b>
+            </div>
+          ) : (
+            <Skeleton key={i} height={64} />
+          ),
+        )}
+      </div>
+
+      <div className="ops-board">
         <Card>
           <div className="dash-head">
-            <h2>À suivre</h2>
-            <Link href="/planning">Planning</Link>
+            <h2>À traiter</h2>
+            <Link href="/planning">Ouvrir le planning</Link>
           </div>
           {loading ? (
-            <Skeleton height={220} />
-          ) : attention.length ? (
-            <div className="dash-list">
-              {attention.map((order) => (
-                <Link key={order.id} href="/work-orders" className="dash-row">
+            <Skeleton height={280} />
+          ) : queue.length ? (
+            <div>
+              {queue.map((order) => (
+                <Link key={order.id} href="/work-orders" className={`ops-job ${order.late ? 'is-late' : ''}`}>
+                  <time>{clock(order.scheduledStart)}</time>
                   <div style={{ minWidth: 0 }}>
-                    <div className="dash-title">
-                      {order.number} · {order.title}
-                    </div>
-                    <div className="dash-meta">
-                      {order.customer?.name ?? 'Sans client'}
-                      {order.assignedTo
-                        ? ` · ${order.assignedTo.firstName} ${order.assignedTo.lastName}`
-                        : ' · Non affectée'}
+                    <strong>{order.customer?.name ?? order.number}</strong>
+                    <small>
+                      {order.title}
                       {order.site?.city ? ` · ${order.site.city}` : ''}
-                      {order.scheduledStart ? ` · ${formatWhen(order.scheduledStart)}` : ''}
-                    </div>
+                    </small>
                   </div>
-                  <div style={{ display: 'grid', justifyItems: 'end', gap: 4 }}>
-                    <StatusBadge status={order.status} />
-                    {order.late ? <span className="kpi-trend down">Retard</span> : null}
-                  </div>
+                  <span className="ops-who">
+                    {order.assignedTo
+                      ? `${order.assignedTo.firstName} ${order.assignedTo.lastName}`
+                      : 'Non affectée'}
+                  </span>
+                  <StatusBadge status={order.status} />
                 </Link>
               ))}
             </div>
           ) : (
-            <EmptyState
-              title="Rien en attente"
-              description="Les interventions ouvertes apparaîtront ici."
-            />
+            <p className="muted" style={{ margin: '8px 0 0' }}>
+              Aucune intervention à traiter.
+            </p>
           )}
         </Card>
 
-        <Card>
-          <div className="dash-head">
-            <h2>Encore ouvertes</h2>
-            <Link href="/work-orders">Interventions</Link>
-          </div>
-          {loading ? (
-            <Skeleton height={220} />
-          ) : openByStatus.length ? (
-            <>
-              <div className="dash-statuses">
-                {openByStatus.map(([status, count]) => (
-                  <div key={status} className="dash-status">
-                    <span>{STATUS_LABEL[status] ?? status}</span>
-                    <div className="dash-bar">
-                      <span
-                        style={{
-                          width: `${Math.max(8, (count / openMax) * 100)}%`,
-                          background: STATUS_COLOR[status] ?? 'var(--primary)',
-                        }}
-                      />
-                    </div>
-                    <strong>{count}</strong>
+        <div className="ops-side">
+          <Card>
+            <div className="dash-head">
+              <h2>Équipe, 7 jours</h2>
+            </div>
+            {loading ? (
+              <Skeleton height={160} />
+            ) : load.length ? (
+              <div>
+                {load.map(([name, count]) => (
+                  <div key={name} className="ops-line">
+                    <span style={{ color: 'var(--ink)' }}>{name}</span>
+                    <b>{count}</b>
                   </div>
                 ))}
               </div>
-              <p className="dash-note">
-                {stats?.completed ?? 0} terminées
-                {stats ? ` · ${stats.completionRate} %` : ''}
-                {(stats?.cancelled ?? 0) > 0 ? ` · ${stats?.cancelled} annulées` : ''}
+            ) : (
+              <p className="muted" style={{ margin: '8px 0 0' }}>
+                Personne n’est planifié sur la semaine.
               </p>
-            </>
-          ) : (
-            <EmptyState title="Aucune intervention ouverte" />
-          )}
-        </Card>
-      </div>
+            )}
+          </Card>
 
-      {!loading ? (
-        <p className="dash-foot">
-          {counts.customers} clients · {counts.sites} sites · {counts.team} personnes ·{' '}
-          {stats?.total ?? 0} interventions
-        </p>
-      ) : null}
+          <Card>
+            <div className="dash-head">
+              <h2>Facturation</h2>
+              <Link href="/billing">Voir</Link>
+            </div>
+            {loading ? (
+              <Skeleton height={120} />
+            ) : (
+              <div>
+                <div className="ops-line">
+                  <span>Factures ouvertes</span>
+                  <b>{money(billing.due, billing.currency)}</b>
+                </div>
+                <div className="ops-line">
+                  <span>Nombre</span>
+                  <b>{billing.count}</b>
+                </div>
+                <div className="ops-line">
+                  <span>Devis en cours</span>
+                  <b>{billing.quotes}</b>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
     </AppShell>
   );
 }
