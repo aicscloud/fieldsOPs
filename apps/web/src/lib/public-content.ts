@@ -1,7 +1,7 @@
 export const faq = [
   {
-    q: 'À quoi sert FieldOps ?',
-    a: 'FieldOps sert à planifier les interventions, affecter les techniciens et préparer devis et factures dans le même outil.',
+    q: 'À quoi sert Fundi ?',
+    a: 'Fundi sert à planifier les interventions, affecter les techniciens et préparer devis et factures dans le même outil.',
   },
   {
     q: 'Comment ouvrir un compte ?',

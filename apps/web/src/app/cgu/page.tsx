@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { PublicChrome } from '@/components/PublicChrome';
 
 export const metadata: Metadata = {
-  title: 'Conditions d’utilisation — FieldOps',
-  description: 'Conditions d’utilisation du service FieldOps.',
+  title: 'Conditions d’utilisation — Fundi',
+  description: 'Conditions d’utilisation du service Fundi.',
 };
 
 export default function TermsPage() {
@@ -14,7 +14,7 @@ export default function TermsPage() {
         <p className="muted">En vigueur au 9 octobre 2026.</p>
         <h2>Objet</h2>
         <p>
-          FieldOps est un logiciel de gestion d’interventions : planning,
+          Fundi est un logiciel de gestion d’interventions : planning,
           équipes terrain, clients, sites et facturation. Les présentes
           conditions s’appliquent à toute organisation qui crée un compte.
         </p>
@@ -27,7 +27,7 @@ export default function TermsPage() {
         <h2>Données de votre organisation</h2>
         <p>
           Les clients, interventions, photos et documents que vous enregistrez
-          restent ceux de votre organisation. FieldOps les traite pour fournir
+          restent ceux de votre organisation. Fundi les traite pour fournir
           le service : affichage, planning, facturation et lien portail client.
         </p>
         <h2>Usage acceptable</h2>
@@ -44,7 +44,7 @@ export default function TermsPage() {
         </p>
         <h2>Fin d’accès</h2>
         <p>
-          Vous pouvez cesser d’utiliser FieldOps à tout moment. Un accès peut
+          Vous pouvez cesser d’utiliser Fundi à tout moment. Un accès peut
           être suspendu en cas d’usage contraire aux présentes conditions.
         </p>
         <h2>Contact</h2>

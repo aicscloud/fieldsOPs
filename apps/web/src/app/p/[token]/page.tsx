@@ -59,7 +59,7 @@ export default function PublicPortalPage() {
         <div>
           {data.organization.name}
           <div className="muted" style={{ fontSize: '0.85rem' }}>
-            Portail client FieldOps
+            Portail client Fundi
           </div>
         </div>
       </div>

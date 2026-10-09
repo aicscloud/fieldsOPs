@@ -51,7 +51,7 @@ export default function HomePage() {
           <p className="site-kicker">Logiciel pour équipes terrain</p>
           <h1>Planifiez la journée, suivez le terrain, facturez le travail fait.</h1>
           <p>
-            FieldOps réunit le planning des techniciens, le suivi des
+            Fundi réunit le planning des techniciens, le suivi des
             interventions et la facturation. Le bureau voit qui part, qui est
             sur place et ce qui reste à encaisser. Le technicien ouvre sa
             mission avec l’adresse, la durée et le détail du travail.

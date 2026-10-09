@@ -13,7 +13,7 @@ export function Brand() {
     <Link href="/" className="brand">
       <LogoMark />
       <span className="brand-name">
-        Field<span>Ops</span>
+        Fun<span>di</span>
       </span>
     </Link>
   );
