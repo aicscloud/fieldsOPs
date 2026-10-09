@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getSession, saveSession, type AuthSession } from '@/lib/api';
+import { Brand, ProductBoard } from '@/components/ProductBoard';
 import { Button, Input, PasswordInput } from '@/components/ui';
 
 export default function LoginPage() {
@@ -52,14 +52,9 @@ export default function LoginPage() {
     <main className="auth-layout">
       <section className="auth-form-side">
         <div className="auth-card">
-          <div className="brand">
-            <div className="brand-mark">FO</div>
-            <div>
-              Field<span>Ops</span>
-            </div>
-          </div>
+          <Brand />
           <h1>Connexion</h1>
-          <p>Pilotez vos équipes terrain depuis un seul endroit.</p>
+          <p>Retrouvez le planning, les interventions et la facturation.</p>
           <form className="form-stack" onSubmit={onSubmit}>
             <Input
               label="Email"
@@ -86,16 +81,11 @@ export default function LoginPage() {
           </p>
         </div>
       </section>
-      <aside className="auth-panel" aria-hidden="true">
-        <Image
-          src="/auth/login.jpg"
-          alt=""
-          fill
-          priority
-          className="auth-panel-image"
-          sizes="50vw"
-        />
-        <div className="auth-panel-overlay" />
+      <aside className="auth-panel">
+        <div className="auth-stage">
+          <p>La journée de l’équipe, avant même d’ouvrir le planning.</p>
+          <ProductBoard />
+        </div>
       </aside>
     </main>
   );

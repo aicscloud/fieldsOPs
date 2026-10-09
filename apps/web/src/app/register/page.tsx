@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, saveSession, type AuthSession } from '@/lib/api';
+import { Brand, ProductBoard } from '@/components/ProductBoard';
 import { Button, Input, PasswordInput, Select } from '@/components/ui';
 
 export default function RegisterPage() {
@@ -46,14 +46,9 @@ export default function RegisterPage() {
     <main className="auth-layout">
       <section className="auth-form-side">
         <div className="auth-card">
-          <div className="brand">
-            <div className="brand-mark">FO</div>
-            <div>
-              Field<span>Ops</span>
-            </div>
-          </div>
+          <Brand />
           <h1>Créer votre organisation</h1>
-          <p>Multi-tenant, prêt pour vos équipes mobiles.</p>
+          <p>Un espace pour vos techniciens, vos clients et vos interventions.</p>
           <form className="form-stack" onSubmit={onSubmit}>
             <div className="row" style={{ alignItems: 'stretch' }}>
               <div style={{ flex: 1 }}>
@@ -83,16 +78,11 @@ export default function RegisterPage() {
           </p>
         </div>
       </section>
-      <aside className="auth-panel" aria-hidden="true">
-        <Image
-          src="/auth/register.jpg"
-          alt=""
-          fill
-          priority
-          className="auth-panel-image"
-          sizes="50vw"
-        />
-        <div className="auth-panel-overlay" />
+      <aside className="auth-panel">
+        <div className="auth-stage">
+          <p>Planning, terrain et factures, dès le premier jour.</p>
+          <ProductBoard />
+        </div>
       </aside>
     </main>
   );

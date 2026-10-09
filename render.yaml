@@ -22,7 +22,7 @@ services:
       - key: JWT_REFRESH_TTL
         value: 7d
       - key: CORS_ORIGIN
-        value: https://fieldops-web.onrender.com
+        value: https://fieldops-web-v14s.onrender.com
 
   - type: web
     name: fieldops-web
