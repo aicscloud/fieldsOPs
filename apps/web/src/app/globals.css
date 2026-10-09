@@ -1231,6 +1231,12 @@ b {
   margin-bottom: 8px;
 }
 
+.site-nav nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
 .site-nav nav a:not(.btn) {
   color: var(--muted);
 }
