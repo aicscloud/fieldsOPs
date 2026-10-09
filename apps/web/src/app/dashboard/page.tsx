@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { QuickCreateWorkOrder } from '@/components/QuickCreateWorkOrder';
-import { Button, Card, Modal, Skeleton, Spinner, StatusBadge } from '@/components/ui';
+import { Button, Card, Modal, Skeleton, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Stats = {
@@ -195,7 +195,6 @@ export default function DashboardPage() {
         ) : null}
       </Modal>
       <p className="dash-date">{dateLabel}</p>
-      {loading ? <Spinner /> : null}
 
       {loading ? (
         <div className="dash-metrics">
