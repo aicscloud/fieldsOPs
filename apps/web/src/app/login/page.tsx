@@ -5,10 +5,12 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getSession, saveSession, type AuthSession } from '@/lib/api';
 import { Brand } from '@/components/Brand';
+import { LanguageSwitch, useI18n } from '@/lib/i18n';
 import { Button, Input, PasswordInput } from '@/components/ui';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { m } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +44,7 @@ export default function LoginPage() {
       saveSession(data);
       router.push(data.role === 'FIELD_WORKER' ? '/field' : '/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connexion impossible');
+      setError(err instanceof Error ? err.message : m.auth.loginFail);
     } finally {
       setLoading(false);
     }
@@ -52,20 +54,23 @@ export default function LoginPage() {
     <main className="auth-layout">
       <section className="auth-form-side">
         <div className="auth-card">
-          <Brand />
-          <h1>Connexion</h1>
-          <p>Retrouvez le planning, les interventions et la facturation.</p>
+          <div className="auth-top">
+            <Brand />
+            <LanguageSwitch />
+          </div>
+          <h1>{m.auth.loginTitle}</h1>
+          <p>{m.auth.loginLead}</p>
           <form className="form-stack" onSubmit={onSubmit}>
             <Input
-              label="Email"
+              label={m.auth.email}
               name="email"
               type="email"
               required
-              placeholder="vous@entreprise.com"
+              placeholder={m.auth.emailPlaceholder}
               autoComplete="email"
             />
             <PasswordInput
-              label="Mot de passe"
+              label={m.auth.password}
               name="password"
               required
               minLength={8}
@@ -73,20 +78,20 @@ export default function LoginPage() {
             />
             {error ? <div className="error-box">{error}</div> : null}
             <Button type="submit" loading={loading} className="btn-lg">
-              Se connecter
+              {m.auth.signIn}
             </Button>
           </form>
           <p className="muted" style={{ marginTop: 18 }}>
-            Pas encore de compte ? <Link href="/register">Créer une organisation</Link>
+            {m.auth.noAccount} <Link href="/register">{m.auth.createOrg}</Link>
           </p>
         </div>
       </section>
       <aside className="auth-panel">
         <img
           src="/brand/dispatch.jpg"
-          alt="Responsable d’exploitation devant son planning, dans un bureau."
+          alt={m.auth.loginPhoto}
         />
-        <p>La journée de l’équipe, avant même d’ouvrir le planning.</p>
+        <p>{m.auth.loginCaption}</p>
       </aside>
     </main>
   );

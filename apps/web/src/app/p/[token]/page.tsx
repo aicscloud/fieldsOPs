@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { LogoMark } from '@/components/Brand';
+import { useI18n } from '@/lib/i18n';
 import { StatusBadge } from '@/components/ui';
 import { API_URL } from '@/lib/api';
 
@@ -25,6 +26,7 @@ type PortalView = {
 
 export default function PublicPortalPage() {
   const params = useParams<{ token: string }>();
+  const { m } = useI18n();
   const [data, setData] = useState<PortalView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +61,7 @@ export default function PublicPortalPage() {
         <div>
           {data.organization.name}
           <div className="muted" style={{ fontSize: '0.85rem' }}>
-            Portail client Ekipa
+            {m.pub.portal}
           </div>
         </div>
       </div>

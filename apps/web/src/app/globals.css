@@ -1156,10 +1156,8 @@ b {
   width: 100%;
 }
 
-.brand-logo {
+.brand-svg {
   display: block;
-  border-radius: 8px;
-  overflow: hidden;
   flex-shrink: 0;
 }
 
@@ -1202,10 +1200,35 @@ b {
   border-bottom: 1px solid var(--line);
 }
 
-.site-nav nav {
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.lang-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 8px;
+  min-height: 30px;
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.lang-switch button.is-on {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.auth-top {
   display: flex;
   align-items: center;
-  gap: 18px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .site-nav nav a:not(.btn) {

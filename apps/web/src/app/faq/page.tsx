@@ -1,19 +1,16 @@
-import type { Metadata } from 'next';
-import { PublicChrome } from '@/components/PublicChrome';
-import { faq } from '@/lib/public-content';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'FAQ — Ekipa',
-  description: 'Questions fréquentes sur Ekipa.',
-};
+import { PublicChrome } from '@/components/PublicChrome';
+import { useI18n } from '@/lib/i18n';
 
 export default function FaqPage() {
+  const { m } = useI18n();
   return (
     <PublicChrome>
       <article className="site-doc">
-        <h1>Questions fréquentes</h1>
+        <h1>{m.home.faqTitle}</h1>
         <div className="site-faq-list">
-          {faq.map((item) => (
+          {m.faq.map((item) => (
             <section key={item.q}>
               <h2>{item.q}</h2>
               <p>{item.a}</p>

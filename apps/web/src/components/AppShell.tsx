@@ -28,40 +28,41 @@ import { api, clearSession, getSession } from '@/lib/api';
 import { applyOrgBranding, loadCachedBranding, resolveTheme } from '@/lib/branding';
 import { ReactNode, useEffect, useLayoutEffect, useState } from 'react';
 import { LogoMark } from '@/components/Brand';
+import { LanguageSwitch, useI18n } from '@/lib/i18n';
 import { Avatar, Button } from '@/components/ui';
 
 const groups = [
   {
-    label: 'Vue d’ensemble',
+    label: 'overview',
     links: [
-      { href: '/dashboard', label: 'Activité', icon: LayoutDashboard },
-      { href: '/stats', label: 'Statistiques', icon: BarChart3 },
+      { href: '/dashboard', label: 'dashboard', icon: LayoutDashboard },
+      { href: '/stats', label: 'stats', icon: BarChart3 },
     ],
   },
   {
-    label: 'Dispatch',
+    label: 'dispatch',
     links: [
-      { href: '/work-orders', label: 'Interventions', icon: Briefcase },
-      { href: '/planning', label: 'Planning', icon: CalendarDays },
-      { href: '/field', label: 'Terrain', icon: Truck },
-      { href: '/team', label: 'Techniciens', icon: Users },
-      { href: '/groups', label: 'Groupes', icon: UsersRound },
+      { href: '/work-orders', label: 'workOrders', icon: Briefcase },
+      { href: '/planning', label: 'planning', icon: CalendarDays },
+      { href: '/field', label: 'field', icon: Truck },
+      { href: '/team', label: 'team', icon: Users },
+      { href: '/groups', label: 'groups', icon: UsersRound },
     ],
   },
   {
-    label: 'Business',
+    label: 'business',
     links: [
-      { href: '/billing', label: 'Facturation', icon: FileText },
-      { href: '/inventory', label: 'Equipements', icon: Package },
+      { href: '/billing', label: 'billing', icon: FileText },
+      { href: '/inventory', label: 'inventory', icon: Package },
     ],
   },
   {
-    label: 'Organisation',
+    label: 'organization',
     links: [
-      { href: '/customers', label: 'Clients', icon: Building2 },
-      { href: '/sites', label: 'Sites', icon: MapPin },
-      { href: '/categories', label: 'Catégories', icon: Tags },
-      { href: '/settings', label: 'Paramètres', icon: Settings },
+      { href: '/customers', label: 'customers', icon: Building2 },
+      { href: '/sites', label: 'sites', icon: MapPin },
+      { href: '/categories', label: 'categories', icon: Tags },
+      { href: '/settings', label: 'settings', icon: Settings },
     ],
   },
 ];
@@ -77,7 +78,8 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [orgName, setOrgName] = useState('Ekipa');
+  const [orgName, setOrgName] = useState('');
+  const { m } = useI18n();
   const [userName, setUserName] = useState('Utilisateur');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -157,23 +159,23 @@ export function AppShell({
     role === 'FIELD_WORKER'
       ? [
           {
-            label: 'Terrain',
-            links: [{ href: '/field', label: 'Missions', icon: Truck }],
+            label: 'field',
+            links: [{ href: '/field', label: 'missions', icon: Truck }],
           },
         ]
       : groups;
 
   return (
     <div className={`app-shell ${collapsed ? 'collapsed' : ''}`}>
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Navigation principale">
+      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label={m.shell.menu}>
         <div className="brand-row">
           <div className="brand">
             <LogoMark />
             {!collapsed || mobileOpen ? (
               <div>
-                Eki<span>pa</span>
+                Inter<span>venio</span>
                 <div className="muted" style={{ fontSize: '0.75rem' }}>
-                  {orgName}
+                  {orgName || m.shell.organization}
                 </div>
               </div>
             ) : null}
@@ -183,7 +185,7 @@ export function AppShell({
             size="icon"
             className="mobile-only"
             onClick={() => setMobileOpen(false)}
-            aria-label="Fermer le menu"
+            aria-label={m.shell.closeMenu}
           >
             <X size={18} />
           </Button>
@@ -193,7 +195,7 @@ export function AppShell({
           {navGroups.map((group) => (
             <div key={group.label}>
               {!collapsed || mobileOpen ? (
-                <div className="nav-label">{group.label}</div>
+                <div className="nav-label">{m.nav[group.label]}</div>
               ) : null}
               <div style={{ display: 'grid', gap: 4 }}>
                 {group.links.map((link) => {
@@ -205,10 +207,10 @@ export function AppShell({
                       href={link.href}
                       className={`nav-link ${active ? 'active' : ''}`}
                       onClick={() => setMobileOpen(false)}
-                      title={link.label}
+                      title={m.nav[link.label]}
                     >
                       <Icon size={18} />
-                      {!collapsed || mobileOpen ? <span>{link.label}</span> : null}
+                      {!collapsed || mobileOpen ? <span>{m.nav[link.label]}</span> : null}
                     </Link>
                   );
                 })}
@@ -248,16 +250,17 @@ export function AppShell({
               <input
                 className="input"
                 style={{ paddingLeft: 36 }}
-                placeholder="Rechercher une intervention…"
+                placeholder={m.shell.search}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Recherche globale"
+                aria-label={m.shell.searchLabel}
               />
             </form>
             )}
           </div>
           <div className="topbar-right">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Changer de thème">
+            <LanguageSwitch />
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={m.shell.theme}>
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
             <div style={{ position: 'relative' }}>
@@ -275,11 +278,11 @@ export function AppShell({
                   <div style={{ padding: 10 }}>
                     <div>{userName}</div>
                     <div className="muted" style={{ fontSize: '0.85rem' }}>
-                      {orgName}
+                      {orgName || m.shell.organization}
                     </div>
                   </div>
                   <button className="menu-item" role="menuitem" onClick={logout}>
-                    Déconnexion
+                    {m.shell.logout}
                   </button>
                 </div>
               ) : null}

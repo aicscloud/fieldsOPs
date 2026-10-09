@@ -5,10 +5,12 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, saveSession, type AuthSession } from '@/lib/api';
 import { Brand } from '@/components/Brand';
+import { LanguageSwitch, useI18n } from '@/lib/i18n';
 import { Button, Input, PasswordInput, Select } from '@/components/ui';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { m } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +38,7 @@ export default function RegisterPage() {
       saveSession(data);
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Inscription impossible');
+      setError(err instanceof Error ? err.message : m.auth.registerFail);
     } finally {
       setLoading(false);
     }
@@ -46,22 +48,25 @@ export default function RegisterPage() {
     <main className="auth-layout">
       <section className="auth-form-side">
         <div className="auth-card">
-          <Brand />
-          <h1>Créer votre organisation</h1>
-          <p>Un espace pour vos techniciens, vos clients et vos interventions.</p>
+          <div className="auth-top">
+            <Brand />
+            <LanguageSwitch />
+          </div>
+          <h1>{m.auth.registerTitle}</h1>
+          <p>{m.auth.registerLead}</p>
           <form className="form-stack" onSubmit={onSubmit}>
             <div className="row" style={{ alignItems: 'stretch' }}>
               <div style={{ flex: 1 }}>
-                <Input label="Prénom" name="firstName" required />
+                <Input label={m.auth.firstName} name="firstName" required />
               </div>
               <div style={{ flex: 1 }}>
-                <Input label="Nom" name="lastName" required />
+                <Input label={m.auth.lastName} name="lastName" required />
               </div>
             </div>
-            <Input label="Email" name="email" type="email" required />
-            <PasswordInput label="Mot de passe" name="password" required minLength={8} />
-            <Input label="Entreprise" name="organizationName" required />
-            <Select label="Pays" name="country" defaultValue="CM">
+            <Input label={m.auth.email} name="email" type="email" required />
+            <PasswordInput label={m.auth.password} name="password" required minLength={8} />
+            <Input label={m.auth.company} name="organizationName" required />
+            <Select label={m.auth.country} name="country" defaultValue="CM">
               <option value="CM">Cameroun</option>
               <option value="FR">France</option>
               <option value="CI">Côte d&apos;Ivoire</option>
@@ -70,20 +75,20 @@ export default function RegisterPage() {
             </Select>
             {error ? <div className="error-box">{error}</div> : null}
             <Button type="submit" loading={loading} className="btn-lg">
-              Créer mon compte
+              {m.auth.createAccount}
             </Button>
           </form>
           <p className="muted" style={{ marginTop: 18 }}>
-            Déjà inscrit ? <Link href="/login">Se connecter</Link>
+            {m.auth.hasAccount} <Link href="/login">{m.auth.signIn}</Link>
           </p>
         </div>
       </section>
       <aside className="auth-panel">
         <img
           src="/brand/technician.jpg"
-          alt="Technicien relevant une intervention sur tablette, devant un climatiseur."
+          alt={m.auth.registerPhoto}
         />
-        <p>Planning, terrain et factures, dès le premier jour.</p>
+        <p>{m.auth.registerCaption}</p>
       </aside>
     </main>
   );
