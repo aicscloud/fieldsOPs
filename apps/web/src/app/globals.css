@@ -1189,6 +1189,9 @@ b {
 }
 
 .site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1441,6 +1444,16 @@ b {
 
 .site-foot a {
   color: var(--muted);
+}
+
+.site-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.site-contact a {
+  color: var(--ink);
 }
 
 .site-doc {

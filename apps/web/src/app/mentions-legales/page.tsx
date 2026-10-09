@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { PublicChrome } from '@/components/PublicChrome';
 
 export const metadata: Metadata = {
-  title: 'Mentions légales — Fundi',
-  description: 'Mentions légales du site Fundi.',
+  title: 'Mentions légales — Ekipa',
+  description: 'Mentions légales du site Ekipa.',
 };
 
 export default function LegalPage() {
@@ -13,9 +13,11 @@ export default function LegalPage() {
         <h1>Mentions légales</h1>
         <h2>Éditeur</h2>
         <p>
-          Le site Fundi est édité par aicscloud.
+          Le site Ekipa est édité par aicscloud.
           <br />
-          Contact : <a href="mailto:aicscloud@gmail.com">aicscloud@gmail.com</a>
+          Téléphone : <a href="tel:+237686669155">+237 686 66 91 55</a>
+          <br />
+          E-mail : <a href="mailto:aicscloud@gmail.com">aicscloud@gmail.com</a>
         </p>
         <h2>Hébergement</h2>
         <p>
@@ -25,7 +27,7 @@ export default function LegalPage() {
         </p>
         <h2>Propriété</h2>
         <p>
-          Le nom Fundi, le logo et les textes de présentation sont réservés
+          Le nom Ekipa, le logo et les textes de présentation sont réservés
           à l’éditeur. Les données saisies dans une organisation appartiennent
           à cette organisation.
         </p>

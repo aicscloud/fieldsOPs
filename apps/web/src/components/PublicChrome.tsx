@@ -19,7 +19,11 @@ export function PublicChrome({ children }: { children: ReactNode }) {
       {children}
       <footer className="site-foot">
         <Brand />
-        <p>Planning, terrain et facturation pour les équipes qui se déplacent.</p>
+        <p>Planning, terrain et facturation pour les PME qui se déplacent.</p>
+        <div className="site-contact">
+          <a href="tel:+237686669155">+237 686 66 91 55</a>
+          <a href="mailto:aicscloud@gmail.com">aicscloud@gmail.com</a>
+        </div>
         <nav>
           <Link href="/faq">FAQ</Link>
           <Link href="/cgu">Conditions d’utilisation</Link>

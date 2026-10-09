@@ -77,7 +77,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [orgName, setOrgName] = useState('Fundi');
+  const [orgName, setOrgName] = useState('Ekipa');
   const [userName, setUserName] = useState('Utilisateur');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -171,7 +171,7 @@ export function AppShell({
             <LogoMark />
             {!collapsed || mobileOpen ? (
               <div>
-                Fun<span>di</span>
+                Eki<span>pa</span>
                 <div className="muted" style={{ fontSize: '0.75rem' }}>
                   {orgName}
                 </div>

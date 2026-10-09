@@ -3,8 +3,8 @@ import { PublicChrome } from '@/components/PublicChrome';
 import { faq } from '@/lib/public-content';
 
 export const metadata: Metadata = {
-  title: 'FAQ — Fundi',
-  description: 'Questions fréquentes sur Fundi.',
+  title: 'FAQ — Ekipa',
+  description: 'Questions fréquentes sur Ekipa.',
 };
 
 export default function FaqPage() {

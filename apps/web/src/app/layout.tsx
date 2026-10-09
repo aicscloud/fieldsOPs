@@ -10,7 +10,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Fundi',
+  title: 'Ekipa',
   description: 'Planning, terrain et facturation pour les équipes qui se déplacent.',
   icons: { icon: '/brand/logo.jpg' },
 };
