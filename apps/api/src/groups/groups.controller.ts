@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +31,15 @@ export class GroupsController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateGroupDto) {
     return this.groupsService.create(user, dto);
+  }
+
+  @Patch(':id')
+  rename(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CreateGroupDto,
+  ) {
+    return this.groupsService.rename(user, id, dto.name);
   }
 
   @Delete(':id')

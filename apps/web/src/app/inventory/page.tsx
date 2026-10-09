@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Part = {
@@ -243,7 +243,7 @@ export default function InventoryPage() {
       </Modal>
 
       {loading ? (
-        <Skeleton height={240} />
+        <PageLoading height={240} />
       ) : (
         <>
           <div className="filters">

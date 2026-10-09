@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 
 const TYPE_OPTIONS = [
@@ -24,6 +24,8 @@ type Customer = {
   type: string;
   email?: string | null;
   phone?: string | null;
+  address?: string | null;
+  notes?: string | null;
   status: string;
   _count?: { sites: number; workOrders: number };
 };
@@ -33,7 +35,9 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Customer | null>(null);
   const [customerType, setCustomerType] = useState('COMPANY');
+  const [customerStatus, setCustomerStatus] = useState('ACTIVE');
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
@@ -65,24 +69,55 @@ export default function CustomersPage() {
     });
   }, [customers, q, type, status]);
 
+  function closeForm() {
+    setShowForm(false);
+    setEditing(null);
+    setCustomerType('COMPANY');
+    setCustomerStatus('ACTIVE');
+  }
+
+  function openCreate() {
+    setEditing(null);
+    setCustomerType('COMPANY');
+    setCustomerStatus('ACTIVE');
+    setShowForm(true);
+  }
+
+  function openEdit(customer: Customer) {
+    setShowForm(false);
+    setEditing(customer);
+    setCustomerType(customer.type);
+    setCustomerStatus(customer.status);
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const body = {
+      type: customerType,
+      name: form.get('name'),
+      email: form.get('email') || undefined,
+      phone: form.get('phone') || undefined,
+      address: form.get('address') || undefined,
+      notes: form.get('notes') || undefined,
+      ...(editing ? { status: customerStatus } : {}),
+    };
     try {
-      await api('/customers', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: customerType,
-          name: form.get('name'),
-          email: form.get('email') || undefined,
-          phone: form.get('phone') || undefined,
-          address: form.get('address') || undefined,
-        }),
-      });
-      setShowForm(false);
+      if (editing) {
+        await api(`/customers/${editing.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+      } else {
+        await api('/customers', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      }
+      closeForm();
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Création impossible');
+      setError(err instanceof Error ? err.message : 'Enregistrement impossible');
     }
   }
 
@@ -94,17 +129,17 @@ export default function CustomersPage() {
           <Link className="btn btn-secondary" href="/sites">
             Voir les sites
           </Link>
-          <Button onClick={() => setShowForm(true)}>Nouveau client</Button>
+          <Button onClick={openCreate}>Nouveau client</Button>
         </div>
       }
     >
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
       <Modal
-        open={showForm}
-        title="Nouveau client"
-        onClose={() => setShowForm(false)}
+        open={showForm || !!editing}
+        title={editing ? 'Modifier le client' : 'Nouveau client'}
+        onClose={closeForm}
       >
-        <form className="form-stack" onSubmit={onSubmit}>
+        <form className="form-stack" key={editing?.id ?? 'new'} onSubmit={onSubmit}>
           <SearchSelect
             label="Type"
             value={customerType}
@@ -117,26 +152,41 @@ export default function CustomersPage() {
           />
           <label className="field">
             <span>Nom</span>
-            <input className="input" name="name" required />
+            <input className="input" name="name" required defaultValue={editing?.name} />
           </label>
           <label className="field">
             <span>Email</span>
-            <input className="input" name="email" type="email" />
+            <input className="input" name="email" type="email" defaultValue={editing?.email ?? ''} />
           </label>
           <label className="field">
             <span>Téléphone</span>
-            <input className="input" name="phone" />
+            <input className="input" name="phone" defaultValue={editing?.phone ?? ''} />
           </label>
           <label className="field">
             <span>Adresse</span>
-            <input className="input" name="address" />
+            <input className="input" name="address" defaultValue={editing?.address ?? ''} />
           </label>
+          <label className="field">
+            <span>Notes</span>
+            <input className="input" name="notes" defaultValue={editing?.notes ?? ''} />
+          </label>
+          {editing ? (
+            <SearchSelect
+              label="Statut"
+              value={customerStatus}
+              selectedLabel={STATUS_OPTIONS.find((s) => s.value === customerStatus)?.label}
+              staticOptions={STATUS_OPTIONS}
+              loadOptions={async () => STATUS_OPTIONS}
+              onChange={setCustomerStatus}
+              allowClear={false}
+            />
+          ) : null}
           <Button type="submit">Enregistrer</Button>
         </form>
       </Modal>
 
       {loading ? (
-        <Skeleton height={260} />
+        <PageLoading height={260} />
       ) : (
         <>
           <div className="filters">
@@ -209,6 +259,15 @@ export default function CustomersPage() {
               header: 'Statut',
               sortValue: (c) => c.status,
               render: (c) => <span className="badge">{c.status}</span>,
+            },
+            {
+              key: 'actions',
+              header: '',
+              render: (c) => (
+                <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(c)}>
+                  Modifier
+                </Button>
+              ),
             },
           ]}
         />

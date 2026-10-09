@@ -7,7 +7,7 @@ import { DataTable } from '@/components/DataTable';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { LineChart } from '@/components/charts/LineChart';
 import { StatusChart } from '@/components/StatusChart';
-import { StatusBadge, Skeleton } from '@/components/ui';
+import { StatusBadge, PageLoading } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { api } from '@/lib/api';
 import { STATUS_FILTER_OPTIONS } from '@/lib/search';
@@ -191,7 +191,7 @@ export default function StatsPage() {
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
 
       {loading || !stats ? (
-        <Skeleton height={420} />
+        <PageLoading height={420} />
       ) : (
         <div className="stats-page">
           <div className="stats-grid">

@@ -30,7 +30,7 @@ import {
   Drawer,
   EmptyState,
   Modal,
-  Skeleton,
+  PageLoading,
   StatusBadge,
   Toast,
 } from '@/components/ui';
@@ -568,7 +568,7 @@ export default function WorkOrdersClient() {
       </div>
 
       {loading ? (
-        <Skeleton height={320} />
+        <PageLoading height={320} />
       ) : (
         <DataTable
           rows={filtered}
@@ -686,7 +686,7 @@ export default function WorkOrdersClient() {
               </div>
             </section>
 
-            {detailLoading ? <Skeleton height={80} /> : null}
+            {detailLoading ? <PageLoading height={80} /> : null}
 
             {canSchedule(selected) ? (
               <section className="plan-drawer-card">

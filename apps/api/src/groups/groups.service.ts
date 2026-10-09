@@ -52,6 +52,29 @@ export class GroupsService {
     }
   }
 
+  async rename(user: AuthUser, id: string, name: string) {
+    const group = await this.prisma.group.findFirst({
+      where: { id, organizationId: user.organizationId },
+    });
+    if (!group) throw new NotFoundException('Groupe introuvable');
+    try {
+      const updated = await this.prisma.group.update({
+        where: { id: group.id },
+        data: { name: name.trim() },
+        include: { memberships: { include: { user: true } } },
+      });
+      return this.present(updated);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Un groupe porte déjà ce nom');
+      }
+      throw error;
+    }
+  }
+
   async remove(user: AuthUser, id: string) {
     const group = await this.prisma.group.findFirst({
       where: { id, organizationId: user.organizationId },

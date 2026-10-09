@@ -19,7 +19,7 @@ import {
 import { AppShell } from '@/components/AppShell';
 import { Pagination, usePager } from '@/components/Pagination';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Skeleton, StatusBadge, Toast } from '@/components/ui';
+import { Button, EmptyState, PageLoading, StatusBadge, Toast } from '@/components/ui';
 import { api, getSession } from '@/lib/api';
 import { searchParts } from '@/lib/search';
 
@@ -266,7 +266,7 @@ export default function FieldPage() {
       {error ? <div className="error-box" style={{ marginBottom: 12, flexShrink: 0 }}>{error}</div> : null}
 
       {loading ? (
-        <Skeleton height={360} />
+        <PageLoading height={360} />
       ) : (
         <div className={`field-shell ${showDetail ? 'is-detail' : ''}`}>
           <aside className="field-rail">

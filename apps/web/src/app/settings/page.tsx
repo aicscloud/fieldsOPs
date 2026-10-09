@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, Skeleton, Toast } from '@/components/ui';
+import { Button, PageLoading, Toast } from '@/components/ui';
 import { api, getSession, saveSession } from '@/lib/api';
 import { applyOrgBranding } from '@/lib/branding';
 
@@ -224,7 +224,7 @@ export default function SettingsPage() {
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
 
       {loading || !org ? (
-        <Skeleton height={360} />
+        <PageLoading height={360} />
       ) : (
         <form id="org-settings-form" className="settings-layout" onSubmit={onSubmit}>
           <aside className="settings-nav" aria-label="Sections paramètres">

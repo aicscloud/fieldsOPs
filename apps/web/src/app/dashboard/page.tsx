@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
-import { Card, Skeleton, StatusBadge } from '@/components/ui';
+import { Card, Skeleton, Spinner, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Stats = {
@@ -174,6 +174,7 @@ export default function DashboardPage() {
     <AppShell title="Activité">
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
       <p className="dash-date">{dateLabel}</p>
+      {loading ? <Spinner /> : null}
 
       {loading ? (
         <div className="dash-metrics">

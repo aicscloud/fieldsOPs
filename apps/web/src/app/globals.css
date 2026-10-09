@@ -968,6 +968,15 @@ b {
   border-radius: 8px;
 }
 
+.page-loading {
+  display: grid;
+  gap: 12px;
+}
+
+.page-spinner {
+  color: var(--primary);
+}
+
 .spin {
   animation: spin 0.8s linear infinite;
 }

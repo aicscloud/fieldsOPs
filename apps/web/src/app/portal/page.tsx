@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 import { searchWorkOrders, STATUS_FILTER_OPTIONS } from '@/lib/search';
 
@@ -116,7 +116,7 @@ export default function PortalAdminPage() {
       </Modal>
 
       {loading ? (
-        <Skeleton height={220} />
+        <PageLoading height={220} />
       ) : (
         <>
           <div className="filters">

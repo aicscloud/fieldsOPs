@@ -163,6 +163,27 @@ export function Skeleton({ height = 16, width = '100%' }: { height?: number; wid
   return <div className="skeleton" style={{ height, width }} />;
 }
 
+export function Spinner({ size = 22 }: { size?: number }) {
+  return <Loader2 size={size} className="spin page-spinner" aria-label="Chargement" />;
+}
+
+export function PageLoading({
+  height = 220,
+  rows = 1,
+}: {
+  height?: number;
+  rows?: number;
+}) {
+  return (
+    <div className="page-loading" role="status" aria-live="polite">
+      <Spinner />
+      {Array.from({ length: rows }, (_, index) => (
+        <Skeleton key={index} height={height} />
+      ))}
+    </div>
+  );
+}
+
 export function Avatar({ name }: { name: string }) {
   const initials = name
     .split(' ')

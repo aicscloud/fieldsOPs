@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, Skeleton, StatusBadge } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLoading, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 import { searchCustomers, searchWorkOrders } from '@/lib/search';
 
@@ -337,7 +337,7 @@ export default function BillingPage() {
       </Modal>
 
       {loading ? (
-        <Skeleton height={240} />
+        <PageLoading height={240} />
       ) : (
         <>
           <div className="filters">

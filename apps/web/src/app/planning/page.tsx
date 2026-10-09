@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Avatar, Button, Drawer, EmptyState, Skeleton, StatusBadge, Toast } from '@/components/ui';
+import { Avatar, Button, Drawer, EmptyState, PageLoading, StatusBadge, Toast } from '@/components/ui';
 import { api } from '@/lib/api';
 import {
   PRIORITY_FILTER_OPTIONS,
@@ -937,8 +937,8 @@ export default function PlanningPage() {
 
         {loading ? (
           <div className="plan-layout">
-            <Skeleton height={520} />
-            <Skeleton height={520} />
+            <PageLoading height={520} />
+            <PageLoading height={520} />
           </div>
         ) : (
           <DndContext
@@ -1195,7 +1195,7 @@ export default function PlanningPage() {
               </div>
             </section>
 
-            {detailLoading ? <Skeleton height={80} /> : null}
+            {detailLoading ? <PageLoading height={80} /> : null}
 
             <section className="plan-drawer-card">
               <div className="plan-drawer-card-title">

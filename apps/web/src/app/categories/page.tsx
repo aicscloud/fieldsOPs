@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Category = {
@@ -31,7 +31,9 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Category | null>(null);
   const [requiresTransport, setRequiresTransport] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [q, setQ] = useState('');
   const [team, setTeam] = useState('');
   const [active, setActive] = useState('');
@@ -65,24 +67,53 @@ export default function CategoriesPage() {
     });
   }, [categories, q, team, active]);
 
+  function closeForm() {
+    setOpen(false);
+    setEditing(null);
+    setRequiresTransport(false);
+    setIsActive(true);
+  }
+
+  function openCreate() {
+    setEditing(null);
+    setRequiresTransport(false);
+    setIsActive(true);
+    setOpen(true);
+  }
+
+  function openEdit(category: Category) {
+    setOpen(false);
+    setEditing(category);
+    setRequiresTransport(!!category.requiresTransport);
+    setIsActive(category.active);
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const body = {
+      name: form.get('name'),
+      description: form.get('description') || undefined,
+      defaultDuration: Number(form.get('defaultDuration') || 60),
+      requiresTransport,
+      ...(editing ? { active: isActive } : {}),
+    };
     try {
-      await api('/work-order-types', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: form.get('name'),
-          description: form.get('description') || undefined,
-          defaultDuration: Number(form.get('defaultDuration') || 60),
-          requiresTransport,
-        }),
-      });
-      setRequiresTransport(false);
-      setOpen(false);
+      if (editing) {
+        await api(`/work-order-types/${editing.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+      } else {
+        await api('/work-order-types', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      }
+      closeForm();
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Création impossible');
+      setError(err instanceof Error ? err.message : 'Enregistrement impossible');
     }
   }
 
@@ -90,24 +121,24 @@ export default function CategoriesPage() {
     <AppShell
       title="Catégories"
       actions={
-        <Button onClick={() => setOpen(true)}>Ajouter une catégorie</Button>
+        <Button onClick={openCreate}>Ajouter une catégorie</Button>
       }
     >
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
 
       <Modal
-        open={open}
-        title="Nouvelle catégorie"
-        onClose={() => setOpen(false)}
+        open={open || !!editing}
+        title={editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
+        onClose={closeForm}
       >
-        <form className="form-stack" onSubmit={onSubmit}>
+        <form className="form-stack" key={editing?.id ?? 'new'} onSubmit={onSubmit}>
           <label className="field">
             <span>Nom</span>
-            <input className="input" name="name" required />
+            <input className="input" name="name" required defaultValue={editing?.name} />
           </label>
           <label className="field">
             <span>Description</span>
-            <input className="input" name="description" />
+            <input className="input" name="description" defaultValue={editing?.description ?? ''} />
           </label>
           <label className="field">
             <span>Durée par défaut (min)</span>
@@ -115,7 +146,7 @@ export default function CategoriesPage() {
               className="input"
               name="defaultDuration"
               type="number"
-              defaultValue={60}
+              defaultValue={editing?.defaultDuration ?? 60}
               min={15}
             />
           </label>
@@ -127,12 +158,22 @@ export default function CategoriesPage() {
             />
             <span>Technicien et transporteur</span>
           </label>
-          <Button type="submit">Ajouter</Button>
+          {editing ? (
+            <label className="field" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+              />
+              <span>Catégorie active</span>
+            </label>
+          ) : null}
+          <Button type="submit">{editing ? 'Enregistrer' : 'Ajouter'}</Button>
         </form>
       </Modal>
 
       {loading ? (
-        <Skeleton height={220} />
+        <PageLoading height={220} />
       ) : (
         <>
           <div className="filters">
@@ -199,6 +240,15 @@ export default function CategoriesPage() {
               header: 'Actif',
               sortValue: (c) => (c.active ? 1 : 0),
               render: (c) => (c.active ? 'Oui' : 'Non'),
+            },
+            {
+              key: 'actions',
+              header: '',
+              render: (c) => (
+                <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(c)}>
+                  Modifier
+                </Button>
+              ),
             },
           ]}
         />

@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, Skeleton } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Person = {
@@ -24,6 +24,7 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [renaming, setRenaming] = useState<Group | null>(null);
   const [addingTo, setAddingTo] = useState<Group | null>(null);
   const [memberId, setMemberId] = useState('');
   const [memberLabel, setMemberLabel] = useState('');
@@ -56,6 +57,22 @@ export default function GroupsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Création impossible');
+    }
+  }
+
+  async function renameGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!renaming) return;
+    const form = new FormData(event.currentTarget);
+    try {
+      await api(`/groups/${renaming.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: form.get('name') }),
+      });
+      setRenaming(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Modification impossible');
     }
   }
 
@@ -145,13 +162,23 @@ export default function GroupsPage() {
         </form>
       </Modal>
 
+      <Modal
+        open={!!renaming}
+        title="Renommer le groupe"
+        onClose={() => setRenaming(null)}
+      >
+        <form className="form-stack" key={renaming?.id ?? 'rename'} onSubmit={renameGroup}>
+          <label className="field">
+            <span>Nom</span>
+            <input className="input" name="name" required maxLength={80} defaultValue={renaming?.name} />
+          </label>
+          <Button type="submit">Enregistrer</Button>
+        </form>
+      </Modal>
+
       <div style={{ marginTop: 14 }}>
         {loading ? (
-          <div className="people-grid">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} height={120} />
-            ))}
-          </div>
+          <PageLoading height={120} rows={3} />
         ) : groups.length ? (
           <div className="people-grid">
             {groups.map((group) => (
@@ -179,6 +206,9 @@ export default function GroupsPage() {
                   <div className="muted">Aucun membre</div>
                 )}
                 <div className="group-card-actions">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setRenaming(group)}>
+                    Modifier
+                  </Button>
                   <Button type="button" variant="secondary" size="sm" onClick={() => setAddingTo(group)}>
                     Ajouter
                   </Button>
