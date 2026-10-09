@@ -1,0 +1,25 @@
+# API FieldOps. Le site Next.js reste sur Netlify, la base sur Supabase.
+services:
+  - type: web
+    name: fieldops-api
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run prisma:generate -w @fieldops/api && npm run build -w @fieldops/api
+    startCommand: npm run start -w @fieldops/api
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false
