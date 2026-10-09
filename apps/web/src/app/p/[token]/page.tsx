@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { StatusBadge } from '@/components/ui';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3010/api';
+import { API_URL } from '@/lib/api';
 
 type PortalView = {
   organization: { name: string; phone?: string | null; email?: string | null };

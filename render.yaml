@@ -1,4 +1,4 @@
-# API FieldOps. Le site Next.js reste sur Netlify, la base sur Supabase.
+# Site et API FieldOps. La base PostgreSQL est sur Supabase.
 services:
   - type: web
     name: fieldops-api
@@ -22,4 +22,19 @@ services:
       - key: JWT_REFRESH_TTL
         value: 7d
       - key: CORS_ORIGIN
-        sync: false
+        value: https://fieldops-web.onrender.com
+
+  - type: web
+    name: fieldops-web
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build -w @fieldops/web
+    startCommand: npm exec -w @fieldops/web -- next start --hostname 0.0.0.0 --port $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: fieldops-api
+          envVarKey: RENDER_EXTERNAL_URL

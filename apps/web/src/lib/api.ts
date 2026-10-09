@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3010/api';
+function resolveApiUrl(value: string | undefined) {
+  const raw = (value ?? 'http://localhost:3010/api').replace(/\/$/, '');
+  return raw.endsWith('/api') ? raw : `${raw}/api`;
+}
+
+export const API_URL = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 export type AuthSession = {
   accessToken: string;
