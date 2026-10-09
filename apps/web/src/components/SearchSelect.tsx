@@ -99,7 +99,7 @@ export function SearchSelect({
 
   useEffect(() => {
     if (!open) return;
-    function onDoc(e: MouseEvent) {
+    function onDoc(e: globalThis.MouseEvent) {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener('mousedown', onDoc);
