@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, saveSession, type AuthSession } from '@/lib/api';
-import { Brand, ProductBoard } from '@/components/ProductBoard';
+import { Brand } from '@/components/Brand';
+import { ProductBoard } from '@/components/ProductBoard';
 import { Button, Input, PasswordInput, Select } from '@/components/ui';
 
 export default function RegisterPage() {

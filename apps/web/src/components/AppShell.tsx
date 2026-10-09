@@ -27,6 +27,7 @@ import {
 import { api, clearSession, getSession } from '@/lib/api';
 import { applyOrgBranding, loadCachedBranding, resolveTheme } from '@/lib/branding';
 import { ReactNode, useEffect, useLayoutEffect, useState } from 'react';
+import { LogoMark } from '@/components/Brand';
 import { Avatar, Button } from '@/components/ui';
 
 const groups = [
@@ -167,7 +168,7 @@ export function AppShell({
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Navigation principale">
         <div className="brand-row">
           <div className="brand">
-            <div className="brand-mark">FO</div>
+            <LogoMark />
             {!collapsed || mobileOpen ? (
               <div>
                 Field<span>Ops</span>

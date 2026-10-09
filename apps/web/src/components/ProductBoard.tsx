@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 const columns = [
   {
     name: 'Jean M.',
@@ -20,17 +18,6 @@ const columns = [
     jobs: [{ time: '08:00', title: 'Audit', place: 'Immeuble Bali', length: '8 h' }],
   },
 ];
-
-export function Brand() {
-  return (
-    <Link href="/" className="brand">
-      <span className="brand-mark">FO</span>
-      <span className="brand-name">
-        Field<span>Ops</span>
-      </span>
-    </Link>
-  );
-}
 
 export function ProductBoard() {
   return (

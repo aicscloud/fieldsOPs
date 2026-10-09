@@ -11,7 +11,8 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: 'FieldOps',
-  description: 'Field Service Management for mobile teams',
+  description: 'Planning, terrain et facturation pour les équipes qui se déplacent.',
+  icons: { icon: '/brand/logo.jpg' },
 };
 
 export default function RootLayout({

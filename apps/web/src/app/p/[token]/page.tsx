@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { LogoMark } from '@/components/Brand';
 import { StatusBadge } from '@/components/ui';
 import { API_URL } from '@/lib/api';
 
@@ -54,7 +55,7 @@ export default function PublicPortalPage() {
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
       <div className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-mark">FO</div>
+        <LogoMark />
         <div>
           {data.organization.name}
           <div className="muted" style={{ fontSize: '0.85rem' }}>
