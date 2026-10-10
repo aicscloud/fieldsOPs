@@ -1,0 +1,9 @@
+{
+  "name": "intervenio-launch",
+  "private": true,
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "msedge-tts": "^2.0.9",
+    "playwright": "1.64.0"
+  }
+}
