@@ -105,7 +105,10 @@ export function AppShell({
     if (session.role === 'FIELD_WORKER' && !pathname.startsWith('/field')) {
       router.replace('/field');
     }
+  }, [router, pathname]);
 
+  useEffect(() => {
+    let cancelled = false;
     api<{
       name: string;
       theme?: string;
@@ -115,17 +118,22 @@ export function AppShell({
       timezone?: string;
     }>('/organizations/me')
       .then((org) => {
+        if (cancelled) return;
         setOrgName(org.name);
         const mode = resolveTheme(org.theme);
         setTheme(mode);
         applyOrgBranding(org);
       })
       .catch(() => {
+        if (cancelled) return;
         const cached = loadCachedBranding();
         setTheme(resolveTheme(cached.theme));
         applyOrgBranding(cached);
       });
-  }, [router, pathname]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {

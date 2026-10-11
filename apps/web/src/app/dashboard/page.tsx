@@ -81,14 +81,23 @@ export default function DashboardPage() {
 
   const refresh = useCallback(() => {
     setLoading(true);
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    from.setDate(from.getDate() - 7);
+    const to = new Date();
+    to.setHours(23, 59, 59, 999);
+    to.setDate(to.getDate() + 8);
     Promise.all([
       api<Stats>('/work-orders/stats'),
-      api<WorkOrder[]>('/work-orders'),
+      api<WorkOrder[]>(`/work-orders?from=${from.toISOString()}&to=${to.toISOString()}`),
+      api<WorkOrder[]>('/work-orders?unassigned=true'),
       api<Doc[]>('/billing').catch(() => [] as Doc[]),
     ])
-      .then(([s, list, billing]) => {
+      .then(([s, list, loose, billing]) => {
         setStats(s);
-        setOrders(list);
+        const byId = new Map<string, WorkOrder>();
+        for (const order of [...list, ...loose]) byId.set(order.id, order);
+        setOrders([...byId.values()]);
         setDocs(billing);
         setError(null);
       })

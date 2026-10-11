@@ -181,7 +181,7 @@ export class InventoryService {
     });
   }
 
-  listInstalled(
+  async listInstalled(
     user: AuthUser,
     opts?: { customerId?: string; siteId?: string; status?: string; q?: string },
   ) {
@@ -190,7 +190,7 @@ export class InventoryService {
       opts?.status === 'REMOVED' || opts?.status === 'INSTALLED'
         ? opts.status
         : undefined;
-    return this.prisma.installedEquipment.findMany({
+    const rows = await this.prisma.installedEquipment.findMany({
       where: {
         organizationId: user.organizationId,
         ...(opts?.customerId ? { customerId: opts.customerId } : {}),
@@ -208,9 +208,20 @@ export class InventoryService {
             }
           : {}),
       },
-      include: { ...installedInclude, _count: { select: { repairs: true } } },
+      include: installedInclude,
       orderBy: { installedAt: 'desc' },
     });
+    if (!rows.length) return [];
+    const repairs = await this.prisma.equipmentRepair.groupBy({
+      by: ['installedEquipmentId'],
+      where: { installedEquipmentId: { in: rows.map((row) => row.id) } },
+      _count: { _all: true },
+    });
+    const byUnit = new Map(repairs.map((row) => [row.installedEquipmentId, row._count._all]));
+    return rows.map((row) => ({
+      ...row,
+      _count: { repairs: byUnit.get(row.id) ?? 0 },
+    }));
   }
 
   async install(user: AuthUser, dto: InstallEquipmentDto, workOrderId?: string) {

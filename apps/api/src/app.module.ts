@@ -22,7 +22,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     ThrottlerModule.forRoot([
       {
         ttl: Number(process.env.THROTTLE_TTL ?? 60) * 1000,
-        limit: Number(process.env.THROTTLE_LIMIT ?? 20),
+        limit: Number(process.env.THROTTLE_LIMIT ?? 300),
       },
     ]),
     PrismaModule,

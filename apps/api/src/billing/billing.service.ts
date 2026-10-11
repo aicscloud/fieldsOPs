@@ -29,9 +29,9 @@ export class BillingService {
       include: {
         customer: { select: { id: true, name: true } },
         workOrder: { select: { id: true, number: true, title: true } },
-        lines: { orderBy: { sortOrder: 'asc' } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
   }
 

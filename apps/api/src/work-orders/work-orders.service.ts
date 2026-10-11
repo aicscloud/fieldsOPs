@@ -108,6 +108,7 @@ export class WorkOrdersService {
       mine?: boolean;
       q?: string;
       take?: number;
+      unassigned?: boolean;
     },
   ) {
     const where: Prisma.WorkOrderWhereInput = {
@@ -127,10 +128,28 @@ export class WorkOrdersService {
           : { assignedToId: user.userId },
       ];
     }
+    if (filters?.unassigned) {
+      where.assignedToId = null;
+      where.status = {
+        notIn: [
+          WorkOrderStatus.COMPLETED,
+          WorkOrderStatus.CANCELLED,
+          WorkOrderStatus.FAILED,
+        ],
+      };
+    }
     if (filters?.from || filters?.to) {
       where.scheduledStart = {};
       if (filters.from) where.scheduledStart.gte = new Date(filters.from);
       if (filters.to) where.scheduledStart.lte = new Date(filters.to);
+    } else if (!filters?.q && !filters?.take && !filters?.mine && !filters?.unassigned) {
+      const from = new Date();
+      from.setDate(from.getDate() - 45);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date();
+      to.setDate(to.getDate() + 30);
+      to.setHours(23, 59, 59, 999);
+      where.scheduledStart = { gte: from, lte: to };
     }
     const q = filters?.q?.trim();
     if (q) {
@@ -142,8 +161,10 @@ export class WorkOrdersService {
     }
     const take =
       filters?.take != null
-        ? Math.min(Math.max(filters.take, 1), 50)
-        : undefined;
+        ? Math.min(Math.max(filters.take, 1), 100)
+        : q
+          ? 50
+          : undefined;
 
     return this.prisma.workOrder.findMany({
       where,
@@ -159,7 +180,7 @@ export class WorkOrdersService {
             longitude: true,
           },
         },
-        type: true,
+        type: { select: { id: true, name: true, kind: true, defaultDuration: true } },
         assignedTo: {
           select: { id: true, firstName: true, lastName: true },
         },
@@ -1027,15 +1048,17 @@ export class WorkOrdersService {
         this.prisma.workOrder.findMany({
           where: {
             organizationId: orgId,
-            createdAt: { gte: rangeStart },
+            parentId: null,
+            scheduledStart: { gte: rangeStart, lt: dayEnd },
           },
-          select: { createdAt: true },
+          select: { scheduledStart: true },
         }),
         this.prisma.workOrder.findMany({
           where: {
             organizationId: orgId,
+            parentId: null,
             status: WorkOrderStatus.COMPLETED,
-            completedAt: { gte: rangeStart },
+            completedAt: { gte: rangeStart, lt: dayEnd },
           },
           select: { completedAt: true },
         }),
@@ -1080,7 +1103,8 @@ export class WorkOrdersService {
       completedMap.set(key, 0);
     }
     for (const row of createdInRange) {
-      const key = localKey(row.createdAt);
+      if (!row.scheduledStart) continue;
+      const key = localKey(row.scheduledStart);
       if (createdMap.has(key)) createdMap.set(key, (createdMap.get(key) ?? 0) + 1);
     }
     for (const row of completedInRange) {

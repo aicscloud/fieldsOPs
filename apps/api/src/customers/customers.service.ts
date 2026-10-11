@@ -8,13 +8,13 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(user: AuthUser, opts?: { q?: string; take?: number }) {
+  async list(user: AuthUser, opts?: { q?: string; take?: number }) {
     const take =
       opts?.take != null
         ? Math.min(Math.max(opts.take, 1), 50)
         : undefined;
     const q = opts?.q?.trim();
-    return this.prisma.customer.findMany({
+    const customers = await this.prisma.customer.findMany({
       where: {
         organizationId: user.organizationId,
         ...(q
@@ -27,18 +27,40 @@ export class CustomersService {
             }
           : {}),
       },
-      include: {
-        _count: {
-          select: {
-            sites: true,
-            workOrders: true,
-            installedEquipment: { where: { status: 'INSTALLED' } },
-          },
-        },
-      },
       orderBy: { name: 'asc' },
       ...(take != null ? { take } : {}),
     });
+    if (!customers.length) return [];
+    const ids = customers.map((customer) => customer.id);
+    const where = { organizationId: user.organizationId, customerId: { in: ids } };
+    const [sites, jobs, gear] = await Promise.all([
+      this.prisma.site.groupBy({
+        by: ['customerId'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.workOrder.groupBy({
+        by: ['customerId'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.installedEquipment.groupBy({
+        by: ['customerId'],
+        where: { ...where, status: 'INSTALLED' },
+        _count: { _all: true },
+      }),
+    ]);
+    const sitesByCustomer = new Map(sites.map((row) => [row.customerId, row._count._all]));
+    const jobsByCustomer = new Map(jobs.map((row) => [row.customerId, row._count._all]));
+    const gearByCustomer = new Map(gear.map((row) => [row.customerId, row._count._all]));
+    return customers.map((customer) => ({
+      ...customer,
+      _count: {
+        sites: sitesByCustomer.get(customer.id) ?? 0,
+        workOrders: jobsByCustomer.get(customer.id) ?? 0,
+        installedEquipment: gearByCustomer.get(customer.id) ?? 0,
+      },
+    }));
   }
 
   async get(user: AuthUser, id: string) {

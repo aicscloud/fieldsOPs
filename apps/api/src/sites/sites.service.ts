@@ -8,7 +8,7 @@ import { UpdateSiteDto } from './dto/update-site.dto';
 export class SitesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(
+  async list(
     user: AuthUser,
     opts?: { customerId?: string; q?: string; take?: number },
   ) {
@@ -17,7 +17,7 @@ export class SitesService {
         ? Math.min(Math.max(opts.take, 1), 50)
         : undefined;
     const q = opts?.q?.trim();
-    return this.prisma.site.findMany({
+    const sites = await this.prisma.site.findMany({
       where: {
         organizationId: user.organizationId,
         ...(opts?.customerId ? { customerId: opts.customerId } : {}),
@@ -33,15 +33,25 @@ export class SitesService {
       },
       include: {
         customer: { select: { id: true, name: true } },
-        _count: {
-          select: {
-            installedEquipment: { where: { status: 'INSTALLED' } },
-          },
-        },
       },
       orderBy: { name: 'asc' },
       ...(take != null ? { take } : {}),
     });
+    if (!sites.length) return [];
+    const counts = await this.prisma.installedEquipment.groupBy({
+      by: ['siteId'],
+      where: {
+        organizationId: user.organizationId,
+        siteId: { in: sites.map((site) => site.id) },
+        status: 'INSTALLED',
+      },
+      _count: { _all: true },
+    });
+    const bySite = new Map(counts.map((row) => [row.siteId, row._count._all]));
+    return sites.map((site) => ({
+      ...site,
+      _count: { installedEquipment: bySite.get(site.id) ?? 0 },
+    }));
   }
 
   async get(user: AuthUser, id: string) {

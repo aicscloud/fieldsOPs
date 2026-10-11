@@ -42,7 +42,20 @@ export class UsersService {
             }
           : {}),
       },
-      include: { user: true, group: { select: { id: true, name: true } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            photoUrl: true,
+            status: true,
+          },
+        },
+        group: { select: { id: true, name: true } },
+      },
       orderBy: { createdAt: 'asc' },
       ...(take != null ? { take } : {}),
     });

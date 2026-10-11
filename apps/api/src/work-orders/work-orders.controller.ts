@@ -68,6 +68,7 @@ export class WorkOrdersController {
     @Query('mine') mine?: string,
     @Query('q') q?: string,
     @Query('take') take?: string,
+    @Query('unassigned') unassigned?: string,
   ) {
     return this.workOrdersService.list(user, {
       status,
@@ -77,6 +78,7 @@ export class WorkOrdersController {
       mine: mine === 'true',
       q,
       take: take ? Number(take) : undefined,
+      unassigned: unassigned === 'true',
     });
   }
 

@@ -241,10 +241,32 @@ export default function WorkOrdersClient() {
   const [availability, setAvailability] = useState<AvailabilityResult | null>(null);
   const [availLoading, setAvailLoading] = useState(false);
 
+  const [query, setQuery] = useState(q);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(q), 300);
+    return () => window.clearTimeout(timer);
+  }, [q]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const wo = await api<WorkOrder[]>('/work-orders');
+      const params = new URLSearchParams();
+      const needle = query.trim();
+      if (needle) {
+        params.set('q', needle);
+      } else {
+        const from = new Date();
+        from.setDate(from.getDate() - 45);
+        from.setHours(0, 0, 0, 0);
+        const to = new Date();
+        to.setDate(to.getDate() + 30);
+        to.setHours(23, 59, 59, 999);
+        params.set('from', from.toISOString());
+        params.set('to', to.toISOString());
+      }
+      if (status) params.set('status', status);
+      const wo = await api<WorkOrder[]>(`/work-orders?${params.toString()}`);
       setOrders(wo);
       setError(null);
     } catch (err) {
@@ -252,7 +274,7 @@ export default function WorkOrdersClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query, status]);
 
   useEffect(() => {
     void load();

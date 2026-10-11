@@ -225,14 +225,14 @@ export default function StatsPage() {
             <section className="stats-panel">
               <div className="stats-panel-head">
                 <h2>Activité 14 jours</h2>
-                <p className="muted">Créées vs terminées</p>
+                <p className="muted">Planifiées vs terminées</p>
               </div>
               <LineChart
                 labels={stats.timeline.map((t) => t.date)}
                 series={[
                   {
                     key: 'created',
-                    label: 'Créées',
+                    label: 'Planifiées',
                     color: 'var(--primary)',
                     values: stats.timeline.map((t) => t.created),
                   },

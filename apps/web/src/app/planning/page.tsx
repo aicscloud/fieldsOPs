@@ -410,25 +410,41 @@ export default function PlanningPage() {
   );
 
   const load = useCallback(async () => {
-    setLoading(true);
+    let from = startOfDay(cursor);
+    let to = addDays(from, 1);
+    if (view === 'week') {
+      from = addDays(from, -((from.getDay() + 6) % 7));
+      to = addDays(from, 7);
+    } else if (view === 'month') {
+      const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      from = addDays(first, -((first.getDay() + 6) % 7));
+      to = addDays(from, 42);
+    }
     try {
-      const [wo, users] = await Promise.all([
-        api<WorkOrder[]>('/work-orders'),
-        api<Worker[]>('/users'),
+      const [wo, loose] = await Promise.all([
+        api<WorkOrder[]>(`/work-orders?from=${from.toISOString()}&to=${to.toISOString()}`),
+        api<WorkOrder[]>('/work-orders?unassigned=true'),
       ]);
-      setOrders(wo);
-      setWorkers(users.filter((u) => u.role === 'FIELD_WORKER'));
+      const byId = new Map<string, WorkOrder>();
+      for (const order of [...wo, ...loose]) byId.set(order.id, order);
+      setOrders([...byId.values()]);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cursor, view]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void api<Worker[]>('/users')
+      .then((users) => setWorkers(users.filter((user) => user.role === 'FIELD_WORKER')))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 60_000);
