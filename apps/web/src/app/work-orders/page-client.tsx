@@ -22,6 +22,8 @@ import {
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { DatePicker } from '@/components/DatePicker';
+import { InstallEquipment } from '@/components/InstallEquipment';
+import { RepairEquipment } from '@/components/RepairEquipment';
 import { QuickCreateWorkOrder } from '@/components/QuickCreateWorkOrder';
 import { SearchSelect } from '@/components/SearchSelect';
 import {
@@ -54,6 +56,7 @@ type WorkOrder = {
   number: string;
   title: string;
   status: string;
+  kind?: 'INSTALLATION' | 'REPAIR' | 'REPLACEMENT' | null;
   priority?: string | null;
   description?: string | null;
   estimatedMinutes?: number | null;
@@ -97,6 +100,7 @@ type WorkOrder = {
     id: string;
     quantity: number;
     part: { sku: string; name: string; unit: string };
+    installed?: { serialNumber: string } | null;
   }[];
   notes?: {
     id: string;
@@ -676,6 +680,15 @@ export default function WorkOrdersClient() {
                 </span>
               </div>
               <h3>{selected.title}</h3>
+              {selected.kind ? (
+                <div className="muted">
+                  {selected.kind === 'INSTALLATION'
+                    ? 'Installation'
+                    : selected.kind === 'REPLACEMENT'
+                      ? 'Changement'
+                      : 'Réparation'}
+                </div>
+              ) : null}
               {selected.description ? <p>{selected.description}</p> : null}
               <div className="plan-drawer-chips">
                 {selected.type ? (
@@ -940,7 +953,10 @@ export default function WorkOrdersClient() {
                         <div>
                           <strong>{usage.part.name}</strong>
                           <div className="muted">
-                            {usage.part.sku} · {usage.quantity} {usage.part.unit}
+                            {usage.part.sku}
+                            {usage.installed ? ` · n° ${usage.installed.serialNumber}` : ''}
+                            {' · '}
+                            {usage.quantity} {usage.part.unit}
                           </div>
                         </div>
                       </li>
@@ -948,9 +964,35 @@ export default function WorkOrdersClient() {
                   </ul>
                 ) : (
                   <p className="muted" style={{ margin: 0 }}>
-                    Aucune pièce consommée.
+                    Aucun équipement posé.
                   </p>
                 )}
+                {selected.kind !== 'INSTALLATION' ? (
+                  <div style={{ marginTop: 16 }}>
+                    <div className="plan-drawer-card-title">
+                      {selected.kind === 'REPLACEMENT' ? 'Changer' : 'Réparer'}
+                    </div>
+                    <RepairEquipment
+                      workOrderId={selected.id}
+                      siteId={selected.site?.id}
+                      replacementOnly={selected.kind === 'REPLACEMENT'}
+                      onDone={() => {
+                        void openDetail(selected);
+                      }}
+                    />
+                  </div>
+                ) : null}
+                {selected.kind !== 'REPAIR' && selected.kind !== 'REPLACEMENT' ? (
+                  <div style={{ marginTop: 16 }}>
+                    <div className="plan-drawer-card-title">Installer</div>
+                    <InstallEquipment
+                      workOrderId={selected.id}
+                      onDone={() => {
+                        void openDetail(selected);
+                      }}
+                    />
+                  </div>
+                ) : null}
               </section>
 
               {selected.checklist?.length ? (

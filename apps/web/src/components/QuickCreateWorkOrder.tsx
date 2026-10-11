@@ -16,6 +16,14 @@ import {
   type WorkOrderTypeOption,
 } from '@/lib/search';
 
+const KINDS = [
+  { id: 'INSTALLATION', label: 'Installation', text: 'Poser un équipement et l’identifier chez le client.' },
+  { id: 'REPAIR', label: 'Réparation', text: 'Dépanner un équipement déjà identifié sur le site.' },
+  { id: 'REPLACEMENT', label: 'Changement', text: 'Remplacer un équipement. Le déroulé est celui d’une réparation.' },
+] as const;
+
+type Kind = (typeof KINDS)[number]['id'];
+
 type Crew = { id: string; name: string };
 type StepId = 'type' | 'customer' | 'site' | 'crew' | 'transport' | 'slot';
 
@@ -56,6 +64,7 @@ export function QuickCreateWorkOrder({
   const [draftBusy, setDraftBusy] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
+  const [kind, setKind] = useState<Kind | ''>('');
   const [typeId, setTypeId] = useState('');
   const [typeLabel, setTypeLabel] = useState('');
   const [duration, setDuration] = useState(60);
@@ -131,33 +140,52 @@ export function QuickCreateWorkOrder({
     setPlanEnd(toLocalInput(new Date(slot.end)));
   }
 
+  function chooseKind(next: Kind) {
+    if (next !== kind) {
+      setTypeId('');
+      setTypeLabel('');
+    }
+    setKind(next);
+  }
+
   async function createCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!kind) return;
     const form = new FormData(event.currentTarget);
     const name = String(form.get('name') || '').trim();
     const minutes = Number(form.get('defaultDuration') || 60);
-    const transport = form.get('requiresTransport') === 'on';
     setDraftBusy(true);
     setDraftError(null);
     try {
-      const created = await api<{ id: string; name: string }>('/work-order-types', {
+      const created = await api<{ id: string; name: string; defaultDuration?: number | null }>('/work-order-types', {
         method: 'POST',
         body: JSON.stringify({
           name,
+          description: String(form.get('description') || '').trim() || undefined,
           defaultDuration: minutes,
-          requiresTransport: transport,
+          kind,
         }),
       });
       setTypeId(created.id);
       setTypeLabel(created.name);
       setDuration(minutes > 0 ? minutes : 60);
-      setNeedsTransport(transport);
       setPanel(null);
       go('customer');
     } catch (err) {
       setDraftError(err instanceof Error ? err.message : 'Création impossible');
     } finally {
       setDraftBusy(false);
+    }
+  }
+
+  function toggleTransport(on: boolean) {
+    setNeedsTransport(on);
+    setTransportSkipped(false);
+    if (!on) {
+      setTransportGroupId('');
+      setTransportGroupLabel('');
+      setTransporterId('');
+      setTransporterLabel('');
     }
   }
 
@@ -309,9 +337,9 @@ export function QuickCreateWorkOrder({
     setLoading(true);
     setError(null);
     try {
-      if (!typeId) {
+      if (!kind || !typeId) {
         go('type');
-        throw new Error('Choisissez ou créez une catégorie.');
+        throw new Error('Choisissez le grand type, puis une catégorie.');
       }
       if (!customerId) {
         go('customer');
@@ -332,9 +360,7 @@ export function QuickCreateWorkOrder({
         throw new Error('Le technicien et le transporteur doivent être deux personnes.');
       }
 
-      const title = typeLabel
-        ? `${typeLabel}${note ? `, ${note}` : ''}`
-        : note || 'Intervention';
+      const title = note ? `${typeLabel}, ${note}` : typeLabel;
 
       await api('/work-orders', {
         method: 'POST',
@@ -344,6 +370,7 @@ export function QuickCreateWorkOrder({
           customerId,
           siteId,
           typeId,
+          kind,
           priority: 'NORMAL',
           scheduledStart: start.toISOString(),
           scheduledEnd: end.toISOString(),
@@ -364,7 +391,14 @@ export function QuickCreateWorkOrder({
 
   const steps = useMemo(() => {
     const list: { id: StepId; title: string; done: boolean; summary: string }[] = [
-      { id: 'type', title: 'Catégorie', done: !!typeId, summary: typeLabel },
+      {
+        id: 'type',
+        title: 'Catégorie',
+        done: !!typeId,
+        summary: typeLabel
+          ? `${KINDS.find((item) => item.id === kind)?.label ?? ''} · ${typeLabel}`
+          : '',
+      },
       { id: 'customer', title: 'Client', done: !!customerId, summary: customerLabel },
       { id: 'site', title: 'Site', done: !!siteId, summary: siteLabel },
       {
@@ -390,6 +424,7 @@ export function QuickCreateWorkOrder({
     });
     return list;
   }, [
+    kind,
     typeId,
     typeLabel,
     customerId,
@@ -410,7 +445,7 @@ export function QuickCreateWorkOrder({
   return (
     <div className="wo-create">
       <p className="wo-intro">
-        Suivez les étapes. S’il manque une catégorie, un client, un site ou un technicien, créez-le ici sans quitter cette fenêtre.
+        Suivez les étapes. Le technicien et le transporteur se décident ici, pas dans la catégorie.
       </p>
       {tempPassword ? (
         <div className="error-box" style={{ borderColor: 'var(--success)' }}>
@@ -450,51 +485,67 @@ export function QuickCreateWorkOrder({
                 <div className="wo-step-body">
                   {step.id === 'type' ? (
                     <>
-                      <SearchSelect
-                        label="Catégorie"
-                        value={typeId}
-                        selectedLabel={typeLabel}
-                        placeholder="Rechercher une catégorie…"
-                        loadOptions={searchWorkOrderTypes}
-                        onChange={(id, opt) => {
-                          const type = opt as WorkOrderTypeOption | null | undefined;
-                          setTypeId(id);
-                          setTypeLabel(type?.label ?? '');
-                          setDuration(type?.defaultDuration && type.defaultDuration > 0 ? type.defaultDuration : 60);
-                          const transport = Boolean(type?.requiresTransport);
-                          setNeedsTransport(transport);
-                          setTransportSkipped(false);
-                          if (!transport) {
-                            setTransportGroupId('');
-                            setTransportGroupLabel('');
-                            setTransporterId('');
-                            setTransporterLabel('');
-                          }
-                          setPlanStart('');
-                          setPlanEnd('');
-                          if (id) go('customer');
-                        }}
-                        allowClear={false}
-                      />
-                      {panel === 'category' ? (
-                        <InlineForm title="Nouvelle catégorie" busy={draftBusy} error={draftError} onSubmit={createCategory}>
-                          <label className="field">
-                            <span>Nom</span>
-                            <input className="input" name="name" required placeholder="Dépannage, entretien…" />
-                          </label>
-                          <label className="field">
-                            <span>Durée (min)</span>
-                            <input className="input" name="defaultDuration" type="number" min={15} defaultValue={60} />
-                          </label>
-                          <label className="wo-check">
-                            <input type="checkbox" name="requiresTransport" />
-                            <span>Technicien et transporteur</span>
-                          </label>
-                        </InlineForm>
+                      <div className="row">
+                        {KINDS.map((item) => (
+                          <Button
+                            key={item.id}
+                            type="button"
+                            variant={kind === item.id ? 'primary' : 'secondary'}
+                            onClick={() => chooseKind(item.id)}
+                          >
+                            {item.label}
+                          </Button>
+                        ))}
+                      </div>
+                      {kind ? (
+                        <>
+                          <SearchSelect
+                            key={kind}
+                            label="Catégorie"
+                            value={typeId}
+                            selectedLabel={typeLabel}
+                            placeholder="Rechercher une catégorie…"
+                            loadOptions={(q) => searchWorkOrderTypes(q, kind)}
+                            onChange={(id, opt) => {
+                              const type = opt as WorkOrderTypeOption | null | undefined;
+                              setTypeId(id);
+                              setTypeLabel(type?.label ?? '');
+                              setDuration(type?.defaultDuration && type.defaultDuration > 0 ? type.defaultDuration : 60);
+                              if (id && type && !type.kind) {
+                                void api(`/work-order-types/${id}`, {
+                                  method: 'PATCH',
+                                  body: JSON.stringify({ kind }),
+                                }).catch(() => undefined);
+                              }
+                              if (id) go('customer');
+                            }}
+                            allowClear={false}
+                          />
+                          {panel === 'category' ? (
+                            <InlineForm title="Nouvelle catégorie" busy={draftBusy} error={draftError} onSubmit={createCategory}>
+                              <label className="field">
+                                <span>Nom</span>
+                                <input className="input" name="name" required placeholder="Pose d’un circuit, entretien…" />
+                              </label>
+                              <label className="field">
+                                <span>Description</span>
+                                <input className="input" name="description" />
+                              </label>
+                              <label className="field">
+                                <span>Durée (min)</span>
+                                <input className="input" name="defaultDuration" type="number" min={15} defaultValue={60} />
+                              </label>
+                            </InlineForm>
+                          ) : (
+                            <button type="button" className="wo-inline-link" onClick={() => setPanel('category')}>
+                              Pas de catégorie dans {KINDS.find((item) => item.id === kind)?.label} ? Créez-la ici
+                            </button>
+                          )}
+                        </>
                       ) : (
-                        <button type="button" className="wo-inline-link" onClick={() => setPanel('category')}>
-                          Pas de catégorie ? Créez-la ici
-                        </button>
+                        <p className="muted" style={{ margin: 0 }}>
+                          Choisissez d’abord le grand type. Les catégories de ce type s’affichent ensuite.
+                        </p>
                       )}
                     </>
                   ) : null}
@@ -671,6 +722,14 @@ export function QuickCreateWorkOrder({
                           Pas de technicien ? Créez-le ici
                         </button>
                       )}
+                      <label className="wo-check">
+                        <input
+                          type="checkbox"
+                          checked={needsTransport}
+                          onChange={(e) => toggleTransport(e.target.checked)}
+                        />
+                        <span>Avec un transporteur</span>
+                      </label>
                       {!workerId ? (
                         <button
                           type="button"
@@ -680,7 +739,7 @@ export function QuickCreateWorkOrder({
                             go(needsTransport ? 'transport' : 'slot');
                           }}
                         >
-                          Affecter plus tard
+                          Affecter le technicien plus tard
                         </button>
                       ) : null}
                     </>

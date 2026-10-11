@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InterventionKind } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkOrderTypeDto } from './dto/create-work-order-type.dto';
@@ -8,7 +9,7 @@ import { UpdateWorkOrderTypeDto } from './dto/update-work-order-type.dto';
 export class WorkOrderTypesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(user: AuthUser, opts?: { q?: string; take?: number }) {
+  list(user: AuthUser, opts?: { q?: string; take?: number; kind?: InterventionKind }) {
     const take =
       opts?.take != null
         ? Math.min(Math.max(opts.take, 1), 100)
@@ -17,6 +18,7 @@ export class WorkOrderTypesService {
     return this.prisma.workOrderType.findMany({
       where: {
         organizationId: user.organizationId,
+        ...(opts?.kind ? { OR: [{ kind: opts.kind }, { kind: null }] } : {}),
         ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
       },
       orderBy: { name: 'asc' },

@@ -4,6 +4,18 @@ import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBillingDocumentDto } from './dto/create-document.dto';
 
+function salePrice(part: { salePrice?: number | null; unitCost?: number | null }) {
+  return part.salePrice ?? part.unitCost ?? 0;
+}
+
+function lineLabel(usage: {
+  part: { name: string; sku: string };
+  installed?: { serialNumber: string } | null;
+}) {
+  const base = `${usage.part.name} (${usage.part.sku})`;
+  return usage.installed ? `${base} · n° ${usage.installed.serialNumber}` : base;
+}
+
 @Injectable()
 export class BillingService {
   constructor(private readonly prisma: PrismaService) {}
@@ -29,7 +41,7 @@ export class BillingService {
       include: {
         customer: { select: { id: true, name: true } },
         partsUsed: {
-          include: { part: true },
+          include: { part: true, installed: true },
           orderBy: { createdAt: 'asc' },
         },
       },
@@ -53,9 +65,9 @@ export class BillingService {
     };
 
     const parts = wo.partsUsed.map((u) => ({
-      label: u.part.name,
+      label: lineLabel(u),
       quantity: u.quantity,
-      unitPrice: u.part.unitCost ?? 0,
+      unitPrice: salePrice(u.part),
       sku: u.part.sku,
       unit: u.part.unit,
     }));
@@ -84,17 +96,16 @@ export class BillingService {
       const wo = await this.prisma.workOrder.findFirst({
         where: { id: dto.workOrderId, organizationId: user.organizationId },
         include: {
-          partsUsed: { include: { part: true }, orderBy: { createdAt: 'asc' } },
+          partsUsed: { include: { part: true, installed: true }, orderBy: { createdAt: 'asc' } },
         },
       });
       if (!wo) throw new NotFoundException('Work order not found');
 
-      // Pièces consommées : une seule fois, au prix stock (unitCost).
       if (!dto.skipPartsFromWorkOrder) {
         partLines = wo.partsUsed.map((u) => ({
-          label: `${u.part.name} (${u.part.sku})`,
+          label: lineLabel(u),
           quantity: u.quantity,
-          unitPrice: u.part.unitCost ?? 0,
+          unitPrice: salePrice(u.part),
         }));
       }
     }

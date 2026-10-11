@@ -27,7 +27,15 @@ export class CustomersService {
             }
           : {}),
       },
-      include: { _count: { select: { sites: true, workOrders: true } } },
+      include: {
+        _count: {
+          select: {
+            sites: true,
+            workOrders: true,
+            installedEquipment: { where: { status: 'INSTALLED' } },
+          },
+        },
+      },
       orderBy: { name: 'asc' },
       ...(take != null ? { take } : {}),
     });

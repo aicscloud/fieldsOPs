@@ -106,37 +106,39 @@ export async function searchParts(q: string): Promise<SearchOption[]> {
       quantity: number;
       unit: string;
       unitCost?: number | null;
+      salePrice?: number | null;
     }[]
   >(`/inventory/parts${qs({ q, take: String(TAKE) })}`);
   return rows.map((p) => ({
     value: p.id,
     label: p.name,
-    meta: `${p.sku} · ${(p.unitCost ?? 0).toFixed(2)} € · stock ${p.quantity} ${p.unit}`,
+    meta: `${p.sku} · vente ${(p.salePrice ?? p.unitCost ?? 0).toFixed(2)} € · stock ${p.quantity} ${p.unit}`,
   }));
 }
 
 export type WorkOrderTypeOption = SearchOption & {
   defaultDuration?: number | null;
   requiresTransport?: boolean;
+  kind?: string | null;
 };
 
-export async function searchWorkOrderTypes(q: string): Promise<WorkOrderTypeOption[]> {
+export async function searchWorkOrderTypes(q: string, kind?: string): Promise<WorkOrderTypeOption[]> {
   const rows = await api<
     {
       id: string;
       name: string;
       defaultDuration?: number | null;
       requiresTransport?: boolean;
+      kind?: string | null;
     }[]
-  >(`/work-order-types${qs({ q, take: String(TAKE) })}`);
+  >(`/work-order-types${qs({ q, take: String(TAKE), kind })}`);
   return rows.map((t) => ({
     value: t.id,
     label: t.name,
-    meta: t.requiresTransport
-      ? 'Technicien + transporteur'
-      : `${t.defaultDuration ?? 60} min`,
+    meta: t.kind ? `${t.defaultDuration ?? 60} min` : `À classer · ${t.defaultDuration ?? 60} min`,
     defaultDuration: t.defaultDuration,
     requiresTransport: t.requiresTransport,
+    kind: t.kind,
   }));
 }
 

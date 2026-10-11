@@ -27,7 +27,7 @@ type Customer = {
   address?: string | null;
   notes?: string | null;
   status: string;
-  _count?: { sites: number; workOrders: number };
+  _count?: { sites: number; workOrders: number; installedEquipment: number };
 };
 
 export default function CustomersPage() {
@@ -247,6 +247,12 @@ export default function CustomersPage() {
               header: 'Sites',
               sortValue: (c) => c._count?.sites ?? 0,
               render: (c) => c._count?.sites ?? 0,
+            },
+            {
+              key: 'equipment',
+              header: 'Équipements',
+              sortValue: (c) => c._count?.installedEquipment ?? 0,
+              render: (c) => c._count?.installedEquipment ?? 0,
             },
             {
               key: 'workOrders',

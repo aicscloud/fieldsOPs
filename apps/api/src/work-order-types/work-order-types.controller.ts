@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { MembershipRole } from '@prisma/client';
+import { InterventionKind, MembershipRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -28,10 +28,12 @@ export class WorkOrderTypesController {
     @CurrentUser() user: AuthUser,
     @Query('q') q?: string,
     @Query('take') take?: string,
+    @Query('kind') kind?: InterventionKind,
   ) {
     return this.workOrderTypesService.list(user, {
       q,
       take: take ? Number(take) : undefined,
+      kind,
     });
   }
 

@@ -3,6 +3,8 @@ import {
   CustomerType,
   DocumentKind,
   DocumentStatus,
+  EquipmentPlacement,
+  InterventionKind,
   MembershipRole,
   Prisma,
   PrismaClient,
@@ -19,7 +21,9 @@ const DEMO_EMAIL = 'demo@fieldops.app';
 const PAST_DAYS = 365;
 const FUTURE_DAYS = 21;
 const JOBS_PER_WEEKDAY = 4;
-const DURATIONS_MIN = [240, 60, 480, 60];
+const LABOR_RATE = 8500;
+const TRAVEL_FEE = 5000;
+const TAX_RATE = 19.25;
 
 const FIRST_NAMES = [
   'Amadou', 'Fatou', 'Jean', 'Marie', 'Paul', 'Sophie', 'Ibrahim', 'Aïcha',
@@ -84,140 +88,185 @@ type CategorySeed = {
   name: string;
   description: string;
   defaultDuration: number;
-  requiresTransport: boolean;
+  kind: InterventionKind;
   note: string;
 };
 
 const CATEGORIES: CategorySeed[] = [
   {
+    name: 'Installation climatisation',
+    description: 'Pose d\'un split ou d\'une cassette, raccordement et essais.',
+    defaultDuration: 180,
+    kind: InterventionKind.INSTALLATION,
+    note: 'Appareil posé, tirage au vide et mise en service.',
+  },
+  {
+    name: 'Mise en service',
+    description: 'Démarrage d\'un équipement neuf et formation du client.',
+    defaultDuration: 150,
+    kind: InterventionKind.INSTALLATION,
+    note: 'Équipement identifié chez le client, essais concluants.',
+  },
+  {
+    name: 'Installation électrique',
+    description: 'Pose ou modification d\'un circuit, tableau ou éclairage.',
+    defaultDuration: 180,
+    kind: InterventionKind.INSTALLATION,
+    note: 'Tirage de ligne et raccordement au tableau.',
+  },
+  {
+    name: 'Câblage réseau',
+    description: 'Tirage de prises RJ45 et brassage baie.',
+    defaultDuration: 120,
+    kind: InterventionKind.INSTALLATION,
+    note: 'Prises testées, baie brassée.',
+  },
+  {
+    name: 'Livraison de matériel',
+    description: 'Apport d\'équipements sur site, sans intervention technique.',
+    defaultDuration: 60,
+    kind: InterventionKind.INSTALLATION,
+    note: 'Matériel déposé à l\'accueil et signé.',
+  },
+  {
     name: 'Maintenance climatisation',
     description: 'Entretien préventif des splits et centrales de traitement d\'air.',
     defaultDuration: 90,
-    requiresTransport: false,
+    kind: InterventionKind.REPAIR,
     note: 'Filtres encrassés, pressions d\'usage normales.',
   },
   {
     name: 'Réparation froid',
     description: 'Dépannage d\'un groupe froid ou d\'une chambre froide.',
     defaultDuration: 120,
-    requiresTransport: true,
-    note: 'Fuite suspectée. Prévoir compresseur et fluide.',
+    kind: InterventionKind.REPAIR,
+    note: 'Fuite traitée. Appoint de fluide et contrôle des pressions.',
   },
   {
     name: 'Dépannage plomberie',
     description: 'Fuite, robinetterie ou évacuation hors service.',
     defaultDuration: 90,
-    requiresTransport: true,
-    note: 'Fuite sous évier. Vanne d\'arrêt localisée.',
-  },
-  {
-    name: 'Installation électrique',
-    description: 'Pose ou modification d\'un circuit, tableau ou éclairage.',
-    defaultDuration: 180,
-    requiresTransport: true,
-    note: 'Tirage de ligne et raccordement au tableau.',
-  },
-  {
-    name: 'Contrôle périodique',
-    description: 'Visite contractuelle et relevé des anomalies.',
-    defaultDuration: 60,
-    requiresTransport: false,
-    note: 'Contrôle réalisé selon le contrat de maintenance.',
-  },
-  {
-    name: 'Mise en service',
-    description: 'Démarrage d\'un équipement neuf et formation du client.',
-    defaultDuration: 150,
-    requiresTransport: true,
-    note: 'Équipement livré, mise en service et essais.',
+    kind: InterventionKind.REPAIR,
+    note: 'Fuite sous évier. Vanne d\'arrêt remplacée.',
   },
   {
     name: 'Remplacement de filtres',
     description: 'Changement des filtres de centrale ou de cassette.',
     defaultDuration: 45,
-    requiresTransport: true,
-    note: 'Filtres G4 et F7 remplacés.',
+    kind: InterventionKind.REPAIR,
+    note: 'Filtres G4 et F7 remplacés sur l\'appareil en place.',
   },
   {
-    name: 'Livraison de matériel',
-    description: 'Apport d\'équipements sur site, sans intervention technique.',
+    name: 'Contrôle périodique',
+    description: 'Visite contractuelle et relevé des anomalies.',
     defaultDuration: 60,
-    requiresTransport: false,
-    note: 'Matériel déposé à l\'accueil et signé.',
+    kind: InterventionKind.REPAIR,
+    note: 'Contrôle réalisé selon le contrat de maintenance.',
   },
   {
     name: 'Audit énergétique',
     description: 'Relevé des consommations et préconisations.',
     defaultDuration: 180,
-    requiresTransport: false,
+    kind: InterventionKind.REPAIR,
     note: 'Relevés effectués sur les compteurs et les CTA.',
-  },
-  {
-    name: 'Câblage réseau',
-    description: 'Tirage de prises RJ45 et brassage baie.',
-    defaultDuration: 120,
-    requiresTransport: true,
-    note: 'Prises testées, baie brassée.',
   },
   {
     name: 'Nettoyage technique',
     description: 'Nettoyage des condenseurs, échangeurs et gaines.',
     defaultDuration: 90,
-    requiresTransport: false,
+    kind: InterventionKind.REPAIR,
     note: 'Condenseur nettoyé, débit d\'air rétabli.',
   },
   {
     name: 'Inspection sécurité',
     description: 'Vérification extincteurs, issues et alarmes.',
     defaultDuration: 60,
-    requiresTransport: false,
+    kind: InterventionKind.REPAIR,
     note: 'Extincteurs en date, issues dégagées.',
   },
   {
     name: 'Dépannage urgent',
     description: 'Panne bloquante, intervention prioritaire.',
     defaultDuration: 90,
-    requiresTransport: true,
-    note: 'Panne bloquante. Site hors service à l\'arrivée.',
+    kind: InterventionKind.REPAIR,
+    note: 'Panne bloquante. Sonde remplacée, installation relancée.',
   },
   {
     name: 'Entretien groupe électrogène',
     description: 'Vidange, filtres et essai en charge.',
     defaultDuration: 120,
-    requiresTransport: true,
+    kind: InterventionKind.REPAIR,
     note: 'Vidange faite, essai en charge concluant.',
   },
   {
     name: 'Maintenance cuisine professionnelle',
     description: 'Froid de cuisine, hotte et chambre positive.',
     defaultDuration: 90,
-    requiresTransport: false,
+    kind: InterventionKind.REPAIR,
     note: 'Chambre positive à température, hotte propre.',
+  },
+  {
+    name: 'Changement de climatiseur',
+    description: 'Dépose de l\'appareil en place et pose d\'un équipement neuf.',
+    defaultDuration: 180,
+    kind: InterventionKind.REPLACEMENT,
+    note: 'Ancien appareil déposé. Nouveau numéro de série enregistré.',
+  },
+  {
+    name: 'Changement de groupe froid',
+    description: 'Remplacement d\'un groupe froid par un équipement neuf.',
+    defaultDuration: 240,
+    kind: InterventionKind.REPLACEMENT,
+    note: 'Groupe remplacé, enceinte de nouveau à température.',
   },
 ];
 
-const PARTS: { sku: string; name: string; unit: string; quantity: number; min: number; cost: number }[] = [
-  { sku: 'FIL-G4', name: 'Filtre G4 climatisation', unit: 'pcs', quantity: 240, min: 40, cost: 4500 },
-  { sku: 'FIL-F7', name: 'Filtre poche F7', unit: 'pcs', quantity: 80, min: 20, cost: 18500 },
-  { sku: 'COMP-R410', name: 'Compresseur scroll R410A', unit: 'pcs', quantity: 12, min: 2, cost: 285000 },
-  { sku: 'GAZ-R410', name: 'Fluide R410A', unit: 'kg', quantity: 60, min: 10, cost: 12000 },
-  { sku: 'GAZ-R32', name: 'Fluide R32', unit: 'kg', quantity: 40, min: 8, cost: 14000 },
-  { sku: 'VAN-12', name: 'Vanne d\'arrêt 1/2"', unit: 'pcs', quantity: 50, min: 10, cost: 6500 },
-  { sku: 'ROB-MEL', name: 'Robinet mélangeur évier', unit: 'pcs', quantity: 25, min: 5, cost: 22000 },
-  { sku: 'JOINT-TOR', name: 'Joint torique assortiment', unit: 'boîte', quantity: 30, min: 6, cost: 3500 },
-  { sku: 'COUR-V', name: 'Courroie trapézoïdale', unit: 'pcs', quantity: 40, min: 8, cost: 8000 },
-  { sku: 'CAPT-T', name: 'Sonde de température', unit: 'pcs', quantity: 35, min: 6, cost: 15000 },
-  { sku: 'THERM-D', name: 'Thermostat digital', unit: 'pcs', quantity: 18, min: 4, cost: 42000 },
-  { sku: 'DISJ-16', name: 'Disjoncteur 16A', unit: 'pcs', quantity: 80, min: 15, cost: 5500 },
-  { sku: 'DISJ-32', name: 'Disjoncteur 32A', unit: 'pcs', quantity: 40, min: 8, cost: 7500 },
-  { sku: 'CABLE-3G', name: 'Câble 3G2.5', unit: 'm', quantity: 500, min: 50, cost: 900 },
-  { sku: 'RJ45-CAT6', name: 'Câble catégorie 6', unit: 'm', quantity: 300, min: 40, cost: 700 },
-  { sku: 'PRISE-RJ', name: 'Prise RJ45', unit: 'pcs', quantity: 100, min: 20, cost: 2500 },
-  { sku: 'HUILE-GE', name: 'Huile groupe électrogène', unit: 'L', quantity: 80, min: 15, cost: 3200 },
-  { sku: 'FIL-GO', name: 'Filtre à gasoil', unit: 'pcs', quantity: 20, min: 4, cost: 11000 },
-  { sku: 'POMPE-C', name: 'Pompe de relevage', unit: 'pcs', quantity: 6, min: 1, cost: 165000 },
-  { sku: 'COLLIER', name: 'Collier inox', unit: 'pcs', quantity: 200, min: 30, cost: 400 },
+type PartSeed = {
+  sku: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  min: number;
+  cost: number;
+  sale: number;
+  serialized?: boolean;
+};
+
+const PARTS: PartSeed[] = [
+  { sku: 'SPLIT-12', name: 'Climatiseur split 12 000 BTU', unit: 'pcs', quantity: 36, min: 4, cost: 185000, sale: 275000, serialized: true },
+  { sku: 'SPLIT-18', name: 'Climatiseur split 18 000 BTU', unit: 'pcs', quantity: 22, min: 3, cost: 265000, sale: 385000, serialized: true },
+  { sku: 'GF-POS', name: 'Groupe froid positif', unit: 'pcs', quantity: 14, min: 2, cost: 920000, sale: 1350000, serialized: true },
+  { sku: 'GE-15', name: 'Groupe électrogène 15 kVA', unit: 'pcs', quantity: 6, min: 1, cost: 1500000, sale: 2100000, serialized: true },
+  { sku: 'POMPE-C', name: 'Pompe de relevage', unit: 'pcs', quantity: 8, min: 2, cost: 165000, sale: 240000, serialized: true },
+  { sku: 'FIL-G4', name: 'Filtre G4 climatisation', unit: 'pcs', quantity: 240, min: 40, cost: 4500, sale: 6500 },
+  { sku: 'FIL-F7', name: 'Filtre poche F7', unit: 'pcs', quantity: 80, min: 20, cost: 18500, sale: 26000 },
+  { sku: 'COMP-R410', name: 'Compresseur scroll R410A', unit: 'pcs', quantity: 8, min: 2, cost: 285000, sale: 390000 },
+  { sku: 'GAZ-R410', name: 'Fluide R410A', unit: 'kg', quantity: 80, min: 10, cost: 12000, sale: 17500 },
+  { sku: 'GAZ-R32', name: 'Fluide R32', unit: 'kg', quantity: 48, min: 8, cost: 14000, sale: 19500 },
+  { sku: 'VAN-12', name: 'Vanne d\'arrêt 1/2"', unit: 'pcs', quantity: 50, min: 10, cost: 6500, sale: 9500 },
+  { sku: 'ROB-MEL', name: 'Robinet mélangeur évier', unit: 'pcs', quantity: 25, min: 5, cost: 22000, sale: 32000 },
+  { sku: 'JOINT-TOR', name: 'Joint torique assortiment', unit: 'boîte', quantity: 30, min: 6, cost: 3500, sale: 5000 },
+  { sku: 'COUR-V', name: 'Courroie trapézoïdale', unit: 'pcs', quantity: 40, min: 8, cost: 8000, sale: 12000 },
+  { sku: 'CAPT-T', name: 'Sonde de température', unit: 'pcs', quantity: 35, min: 6, cost: 15000, sale: 22000 },
+  { sku: 'THERM-D', name: 'Thermostat digital', unit: 'pcs', quantity: 18, min: 4, cost: 42000, sale: 58000 },
+  { sku: 'DISJ-16', name: 'Disjoncteur 16A', unit: 'pcs', quantity: 80, min: 15, cost: 5500, sale: 8000 },
+  { sku: 'DISJ-32', name: 'Disjoncteur 32A', unit: 'pcs', quantity: 40, min: 8, cost: 7500, sale: 11000 },
+  { sku: 'CABLE-3G', name: 'Câble 3G2.5', unit: 'm', quantity: 800, min: 50, cost: 900, sale: 1400 },
+  { sku: 'RJ45-CAT6', name: 'Câble catégorie 6', unit: 'm', quantity: 600, min: 40, cost: 700, sale: 1100 },
+  { sku: 'PRISE-RJ', name: 'Prise RJ45', unit: 'pcs', quantity: 120, min: 20, cost: 2500, sale: 4000 },
+  { sku: 'HUILE-GE', name: 'Huile groupe électrogène', unit: 'L', quantity: 120, min: 15, cost: 3200, sale: 4500 },
+  { sku: 'FIL-GO', name: 'Filtre à gasoil', unit: 'pcs', quantity: 18, min: 4, cost: 11000, sale: 15000 },
+  { sku: 'COLLIER', name: 'Collier inox', unit: 'pcs', quantity: 200, min: 30, cost: 400, sale: 700 },
 ];
+
+const SERIAL_SKUS = PARTS.filter((part) => part.serialized).map((part) => part.sku);
+const RESERVED_FOR_REPLACEMENT: Record<string, number> = {
+  'SPLIT-12': 8,
+  'SPLIT-18': 6,
+  'GF-POS': 6,
+  'GE-15': 2,
+  'POMPE-C': 2,
+};
 
 type Company = { name: string; city: string; sector: string };
 
@@ -302,22 +351,6 @@ function atHour(day: Date, hour: number) {
   return d;
 }
 
-function catalogDuration(name: string) {
-  if (name.startsWith('Installation') || name.startsWith('Mise') || name.startsWith('Audit')) {
-    return 480;
-  }
-  if (
-    name.startsWith('Contrôle') ||
-    name.startsWith('Remplacement') ||
-    name.startsWith('Livraison') ||
-    name.startsWith('Inspection') ||
-    name.startsWith('Dépannage')
-  ) {
-    return 60;
-  }
-  return 240;
-}
-
 function workingDays(from: Date, to: Date) {
   const days: Date[] = [];
   const cursor = new Date(from);
@@ -364,6 +397,11 @@ async function main() {
     select: { id: true },
   });
   for (const old of oldOrgs) {
+    await prisma.equipmentRepairPart.deleteMany({
+      where: { repair: { organizationId: old.id } },
+    });
+    await prisma.equipmentRepair.deleteMany({ where: { organizationId: old.id } });
+    await prisma.installedEquipment.deleteMany({ where: { organizationId: old.id } });
     await prisma.workOrderNotePart.deleteMany({
       where: { note: { organizationId: old.id } },
     });
@@ -388,8 +426,8 @@ async function main() {
       currency: 'XAF',
       timezone: 'Africa/Douala',
       language: 'fr',
-      laborHourlyRate: 8500,
-      defaultTaxRate: 19.25,
+      laborHourlyRate: LABOR_RATE,
+      defaultTaxRate: TAX_RATE,
     },
   });
 
@@ -507,8 +545,9 @@ async function main() {
       organizationId: org.id,
       name: c.name,
       description: c.description,
-      defaultDuration: catalogDuration(c.name),
-      requiresTransport: c.requiresTransport,
+      kind: c.kind,
+      defaultDuration: c.defaultDuration,
+      requiresTransport: false,
       active: true,
     })),
   });
@@ -523,26 +562,27 @@ async function main() {
       quantity: p.quantity,
       minQuantity: p.min,
       unitCost: p.cost,
+      salePrice: p.sale,
       active: true,
     })),
-    select: { id: true, sku: true },
+    select: { id: true, sku: true, name: true, salePrice: true },
   });
-  await prisma.stockMovement.createMany({
-    data: parts.flatMap((part, i) => [
-      {
-        organizationId: org.id,
-        partId: part.id,
-        delta: 20 + (i % 15),
-        reason: 'Réception fournisseur',
-      },
-      {
-        organizationId: org.id,
-        partId: part.id,
-        delta: -(1 + (i % 4)),
-        reason: 'Sortie chantier',
-      },
-    ]),
-  });
+  const partBySku = new Map<
+    string,
+    { id: string; name: string; sale: number; opening: number; serialized: boolean; qty: number }
+  >();
+  for (const part of parts) {
+    const seed = PARTS.find((item) => item.sku === part.sku);
+    if (!seed) throw new Error(`Pièce inconnue: ${part.sku}`);
+    partBySku.set(part.sku, {
+      id: part.id,
+      name: part.name,
+      sale: seed.sale,
+      opening: seed.quantity,
+      serialized: !!seed.serialized,
+      qty: seed.quantity,
+    });
+  }
 
   const createdCustomers = await prisma.customer.createManyAndReturn({
     data: companyRows.map((company, i) => {
@@ -627,8 +667,9 @@ async function main() {
 
   console.log('Interventions…');
   type Job = Prisma.WorkOrderCreateManyInput & {
-    requiresTransport: boolean;
+    withTransport: boolean;
     city: string;
+    category: string;
   };
   const jobs: Job[] = [];
   let seq = 1;
@@ -640,7 +681,6 @@ async function main() {
   rangeEnd.setDate(rangeEnd.getDate() + FUTURE_DAYS);
   const workDays = workingDays(rangeStart, rangeEnd);
   const jobTotal = workDays.length * JOBS_PER_WEEKDAY;
-  const transportBudget = Math.round(jobTotal * 0.16);
 
   const taken = new Map<string, Array<[number, number]>>();
   function reserve(workerId: string, key: string, startMin: number, endMin: number) {
@@ -653,8 +693,10 @@ async function main() {
 
   for (let i = 0; i < jobTotal; i++) {
     const dayDate = workDays[Math.floor(i / JOBS_PER_WEEKDAY)];
-    const minutes = DURATIONS_MIN[i % DURATIONS_MIN.length];
-    const hour = minutes >= 480 ? 8 : minutes >= 240 ? (i % 2 === 0 ? 8 : 13) : [8, 10, 14, 16][i % 4];
+    const category = CATEGORIES[i % CATEGORIES.length];
+    const minutes = category.defaultDuration;
+    const startHours = [8, 10, 13, 15].filter((h) => h * 60 + minutes <= 19 * 60);
+    const hour = startHours[i % startHours.length] ?? 8;
     const dayDelta = Math.round((dayDate.getTime() - today0.getTime()) / 86_400_000);
     const slotKey = `${dayDate.getFullYear()}-${dayDate.getMonth()}-${dayDate.getDate()}`;
     const startMin = hour * 60;
@@ -673,9 +715,15 @@ async function main() {
     const customer = customerPool[i % customerPool.length];
     const customerSites = sitesByCustomer.get(customer.id) ?? [];
     const site = customerSites[i % customerSites.length];
-    const category = CATEGORIES[i % CATEGORIES.length];
     const type = typeByName.get(category.name)!;
     const needsDispatch = dayDelta >= 0 && i % 17 === 0;
+    const withTransport =
+      !needsDispatch &&
+      (category.kind === InterventionKind.REPLACEMENT
+        ? i % 2 === 0
+        : category.kind === InterventionKind.INSTALLATION
+          ? i % 3 === 0
+          : i % 8 === 0);
     const start = atHour(dayDate, hour);
     const end = new Date(start.getTime() + minutes * 60_000);
     let status: WorkOrderStatus = WorkOrderStatus.ASSIGNED;
@@ -712,6 +760,7 @@ async function main() {
       customerId: customer.id,
       siteId: site.id,
       typeId: type.id,
+      kind: category.kind,
       priority,
       status,
       team: TeamGroup.FIELD,
@@ -722,14 +771,15 @@ async function main() {
       startedAt:
         status === WorkOrderStatus.IN_PROGRESS || status === WorkOrderStatus.COMPLETED ? start : null,
       completedAt: status === WorkOrderStatus.COMPLETED ? end : null,
-      requiresTransport: category.requiresTransport && !needsDispatch,
+      withTransport,
       city: worker.city,
+      category: category.name,
     });
   }
 
   const parents = await inChunks(jobs, 400, (part) =>
     prisma.workOrder.createManyAndReturn({
-      data: part.map(({ requiresTransport: _r, city: _c, ...row }) => row),
+      data: part.map(({ withTransport: _w, city: _c, category: _n, ...row }) => row),
       select: { id: true, number: true, scheduledStart: true, scheduledEnd: true },
     }),
   );
@@ -738,8 +788,7 @@ async function main() {
   const busy = new Set<string>();
   const children: Prisma.WorkOrderCreateManyInput[] = [];
   for (const job of jobs) {
-    if (children.length >= transportBudget) break;
-    if (!job.requiresTransport || !job.assignedToId || !job.scheduledStart || !job.scheduledEnd) continue;
+    if (!job.withTransport || !job.assignedToId || !job.scheduledStart || !job.scheduledEnd) continue;
     const parent = parentByNumber.get(job.number);
     if (!parent) continue;
     const start = new Date(job.scheduledStart);
@@ -769,6 +818,7 @@ async function main() {
       customerId: job.customerId,
       siteId: job.siteId,
       typeId: job.typeId,
+      kind: job.kind,
       priority: job.priority,
       status: childStatus,
       team: TeamGroup.TRANSPORT,
@@ -851,78 +901,450 @@ async function main() {
     },
   );
 
-  await inChunks(
-    completed.filter((_, i) => i % 2 === 0).slice(0, 600).map((row, i) => ({
-      organizationId: org.id,
-      workOrderId: row.id,
-      partId: parts[i % parts.length].id,
-      quantity: 1 + (i % 3),
-    })),
-    400,
-    async (part) => {
-      await prisma.workOrderPart.createMany({ data: part });
-      return [];
-    },
-  );
-
   await prisma.workOrderCounter.upsert({
     where: { organizationId: org.id },
     create: { organizationId: org.id, lastNumber: seq - 1 },
     update: { lastNumber: seq - 1 },
   });
 
-  console.log('Factures et liens portail…');
-  const billed = [...completed].reverse().slice(0, 80);
-  for (let i = 0; i < billed.length; i++) {
-    const job = jobs.find((row) => parentByNumber.get(row.number)?.id === billed[i].id) ?? jobs[i];
-    const kind = i % 3 === 0 ? DocumentKind.QUOTE : DocumentKind.INVOICE;
-    const hoursBilled = (job?.estimatedMinutes ?? 60) / 60;
-    const labor = Math.round(hoursBilled * 8500);
-    const travel = 5000;
-    const subtotal = labor + travel;
-    const taxRate = 19.25;
-    const total = Math.round(subtotal * (1 + taxRate / 100));
-    const rawStart = billed[i].scheduledStart;
-    const issued = rawStart ? new Date(rawStart) : dayOffset(-30);
+  console.log('Équipements, stock et factures…');
+  type UseLine = {
+    workOrderId: string;
+    partId: string;
+    sku: string;
+    name: string;
+    quantity: number;
+    sale: number;
+    serial?: string;
+    reason: string;
+  };
+  type UnitPlan = {
+    serial: string;
+    sku: string;
+    partId: string;
+    customerId: string;
+    siteId: string;
+    workOrderId: string;
+    installedAt: Date;
+    status: EquipmentPlacement;
+    removedAt: Date | null;
+    notes: string;
+    repairs: number;
+  };
+  type RepairPlan = {
+    unitSerial: string;
+    workOrderId: string;
+    summary: string;
+    spareSkus: string[];
+    replacementSerial?: string;
+  };
+  const uses: UseLine[] = [];
+  const unitsBySite = new Map<string, UnitPlan[]>();
+  const repairs: RepairPlan[] = [];
+  let serialSeq = 1;
+
+  function take(sku: string, quantity: number, workOrderId: string, reason: string, keepReserve: boolean) {
+    const bucket = partBySku.get(sku);
+    if (!bucket || quantity <= 0) return null;
+    const floor = keepReserve && bucket.serialized ? (RESERVED_FOR_REPLACEMENT[sku] ?? 0) : 0;
+    if (bucket.qty - quantity < floor) return null;
+    bucket.qty -= quantity;
+    const line: UseLine = {
+      workOrderId,
+      partId: bucket.id,
+      sku,
+      name: bucket.name,
+      quantity,
+      sale: bucket.sale,
+      reason,
+    };
+    uses.push(line);
+    return line;
+  }
+
+  function takeSerial(prefer: string[], workOrderId: string, reason: string, forReplacement: boolean) {
+    for (const sku of prefer) {
+      const line = take(sku, 1, workOrderId, reason, !forReplacement);
+      if (!line) continue;
+      line.serial = `${sku}-${pad(serialSeq++, 5)}`;
+      return line;
+    }
+    return null;
+  }
+
+  function consumeAll(
+    lines: { sku: string; qty: number }[],
+    workOrderId: string,
+    reason: string,
+  ) {
+    const ready = lines.every((line) => {
+      const bucket = partBySku.get(line.sku);
+      if (!bucket) return false;
+      const floor = bucket.serialized ? (RESERVED_FOR_REPLACEMENT[line.sku] ?? 0) : 0;
+      return bucket.qty - line.qty >= floor;
+    });
+    if (!ready) return [];
+    return lines.flatMap((line) => (take(line.sku, line.qty, workOrderId, reason, true) ? [line.sku] : []));
+  }
+
+  function spareLines(name: string, index: number) {
+    switch (name) {
+      case 'Installation électrique':
+        return [
+          { sku: 'DISJ-16', qty: 2 },
+          { sku: 'CABLE-3G', qty: 12 },
+        ];
+      case 'Câblage réseau':
+        return [
+          { sku: 'PRISE-RJ', qty: 4 },
+          { sku: 'RJ45-CAT6', qty: 20 },
+        ];
+      case 'Maintenance climatisation':
+        return [{ sku: 'FIL-G4', qty: 1 }];
+      case 'Réparation froid':
+        return index % 5 === 0
+          ? [
+              { sku: 'COMP-R410', qty: 1 },
+              { sku: 'GAZ-R410', qty: 1 },
+            ]
+          : [
+              { sku: 'GAZ-R410', qty: 2 },
+              { sku: 'JOINT-TOR', qty: 1 },
+            ];
+      case 'Dépannage plomberie':
+        return index % 2 === 0
+          ? [{ sku: 'VAN-12', qty: 1 }]
+          : [
+              { sku: 'ROB-MEL', qty: 1 },
+              { sku: 'JOINT-TOR', qty: 1 },
+            ];
+      case 'Remplacement de filtres':
+        return [
+          { sku: 'FIL-G4', qty: 2 },
+          { sku: 'FIL-F7', qty: 1 },
+        ];
+      case 'Dépannage urgent':
+        return [{ sku: 'CAPT-T', qty: 1 }];
+      case 'Entretien groupe électrogène':
+        return [
+          { sku: 'HUILE-GE', qty: 4 },
+          { sku: 'FIL-GO', qty: 1 },
+        ];
+      case 'Maintenance cuisine professionnelle':
+        return [
+          { sku: 'FIL-G4', qty: 1 },
+          { sku: 'GAZ-R32', qty: 1 },
+        ];
+      default:
+        return [];
+    }
+  }
+
+  const completedParents = jobs
+    .filter((job) => job.status === WorkOrderStatus.COMPLETED && job.scheduledStart && job.siteId && job.customerId)
+    .map((job) => {
+      const id = parentByNumber.get(job.number)?.id;
+      if (!id) throw new Error(`Intervention introuvable: ${job.number}`);
+      return { ...job, id, when: new Date(job.scheduledStart as Date) };
+    })
+    .sort((a, b) => a.when.getTime() - b.when.getTime());
+
+  const installCategories = new Set(['Installation climatisation', 'Mise en service']);
+  let placed = 0;
+  for (const job of completedParents) {
+    if (!installCategories.has(job.category)) continue;
+    const onSite = unitsBySite.get(job.siteId!) ?? [];
+    if (onSite.length >= 2) continue;
+    const shift = placed % SERIAL_SKUS.length;
+    const line = takeSerial(
+      [...SERIAL_SKUS.slice(shift), ...SERIAL_SKUS.slice(0, shift)],
+      job.id,
+      `Installation ${job.number}`,
+      false,
+    );
+    if (!line?.serial) continue;
+    placed += 1;
+    onSite.push({
+      serial: line.serial,
+      sku: line.sku,
+      partId: line.partId,
+      customerId: job.customerId!,
+      siteId: job.siteId!,
+      workOrderId: job.id,
+      installedAt: job.when,
+      status: EquipmentPlacement.INSTALLED,
+      removedAt: null,
+      notes: `Posé sur ${job.number}.`,
+      repairs: 0,
+    });
+    unitsBySite.set(job.siteId!, onSite);
+  }
+
+  function matchesUnit(category: string, unit: UnitPlan) {
+    if (category === 'Entretien groupe électrogène') return unit.sku === 'GE-15';
+    if (category === 'Réparation froid' || category === 'Changement de groupe froid') return unit.sku === 'GF-POS';
+    if (category === 'Maintenance cuisine professionnelle') return unit.sku === 'GF-POS' || unit.sku.startsWith('SPLIT');
+    if (
+      category === 'Maintenance climatisation' ||
+      category === 'Remplacement de filtres' ||
+      category === 'Dépannage urgent' ||
+      category === 'Nettoyage technique' ||
+      category === 'Changement de climatiseur'
+    ) {
+      return unit.sku === 'SPLIT-12' || unit.sku === 'SPLIT-18';
+    }
+    return true;
+  }
+
+  const categoryIndex = new Map<string, number>();
+  for (const job of completedParents) {
+    if (job.category === 'Installation électrique' || job.category === 'Câblage réseau') {
+      const index = categoryIndex.get(job.category) ?? 0;
+      categoryIndex.set(job.category, index + 1);
+      consumeAll(spareLines(job.category, index), job.id, `Pose ${job.number}`);
+      continue;
+    }
+    if (job.kind === InterventionKind.REPAIR) {
+      const index = categoryIndex.get(job.category) ?? 0;
+      categoryIndex.set(job.category, index + 1);
+      const unit =
+        job.category === 'Dépannage plomberie'
+          ? undefined
+          : (unitsBySite.get(job.siteId!) ?? []).find(
+              (item) =>
+                item.status === EquipmentPlacement.INSTALLED &&
+                item.installedAt.getTime() <= job.when.getTime() &&
+                item.repairs < 3 &&
+                matchesUnit(job.category, item),
+            );
+      if (job.category !== 'Dépannage plomberie' && !unit) continue;
+      const spareSkus = consumeAll(spareLines(job.category, index), job.id, `Réparation ${job.number}`);
+      if (!unit) continue;
+      unit.repairs += 1;
+      repairs.push({
+        unitSerial: unit.serial,
+        workOrderId: job.id,
+        summary: job.description || 'Réparation effectuée.',
+        spareSkus,
+      });
+      continue;
+    }
+    if (job.kind !== InterventionKind.REPLACEMENT) continue;
+    const unit = (unitsBySite.get(job.siteId!) ?? []).find(
+      (item) =>
+        item.status === EquipmentPlacement.INSTALLED &&
+        item.installedAt.getTime() < job.when.getTime() &&
+        matchesUnit(job.category, item),
+    );
+    if (!unit) continue;
+    const prefer = job.category === 'Changement de groupe froid' ? ['GF-POS', 'SPLIT-18'] : ['SPLIT-12', 'SPLIT-18'];
+    const line = takeSerial(prefer, job.id, `Changement ${job.number}`, true);
+    if (!line?.serial) continue;
+    const gas = take('GAZ-R410', 1, job.id, `Changement ${job.number}`, true);
+    unit.status = EquipmentPlacement.REMOVED;
+    unit.removedAt = job.when;
+    unit.notes = `${unit.notes} Remplacé sur ${job.number}.`;
+    const onSite = unitsBySite.get(job.siteId!)!;
+    onSite.push({
+      serial: line.serial,
+      sku: line.sku,
+      partId: line.partId,
+      customerId: job.customerId!,
+      siteId: job.siteId!,
+      workOrderId: job.id,
+      installedAt: job.when,
+      status: EquipmentPlacement.INSTALLED,
+      removedAt: null,
+      notes: `Posé en remplacement sur ${job.number}.`,
+      repairs: 0,
+    });
+    repairs.push({
+      unitSerial: unit.serial,
+      workOrderId: job.id,
+      summary: job.description || 'Appareil remplacé.',
+      spareSkus: gas ? ['GAZ-R410'] : [],
+      replacementSerial: line.serial,
+    });
+  }
+
+  for (const bucket of partBySku.values()) {
+    const left = uses.filter((line) => line.partId === bucket.id).reduce((sum, line) => sum - line.quantity, bucket.opening);
+    if (left !== bucket.qty) throw new Error(`Stock incohérent pour ${bucket.name}`);
+  }
+
+  await inChunks(uses, 400, async (part) => {
+    await prisma.workOrderPart.createMany({
+      data: part.map((line) => ({
+        organizationId: org.id,
+        workOrderId: line.workOrderId,
+        partId: line.partId,
+        quantity: line.quantity,
+      })),
+    });
+    return [];
+  });
+  const storedParts = await prisma.workOrderPart.findMany({
+    where: { organizationId: org.id },
+    select: { id: true, workOrderId: true, partId: true },
+  });
+  const partLineId = new Map(storedParts.map((line) => [`${line.workOrderId}|${line.partId}`, line.id]));
+  const allUnits = [...unitsBySite.values()].flat();
+  await inChunks(allUnits, 200, async (part) => {
+    await prisma.installedEquipment.createMany({
+      data: part.map((unit) => ({
+        organizationId: org.id,
+        partId: unit.partId,
+        serialNumber: unit.serial,
+        status: unit.status,
+        customerId: unit.customerId,
+        siteId: unit.siteId,
+        workOrderId: unit.workOrderId,
+        workOrderPartId: partLineId.get(`${unit.workOrderId}|${unit.partId}`) ?? null,
+        notes: unit.notes,
+        installedAt: unit.installedAt,
+        removedAt: unit.removedAt,
+      })),
+    });
+    return [];
+  });
+  const storedUnits = await prisma.installedEquipment.findMany({
+    where: { organizationId: org.id },
+    select: { id: true, serialNumber: true },
+  });
+  const unitId = new Map(storedUnits.map((unit) => [unit.serialNumber, unit.id]));
+  const storedRepairs = await inChunks(repairs, 200, (part) =>
+    prisma.equipmentRepair.createManyAndReturn({
+      data: part.map((repair) => ({
+        organizationId: org.id,
+        installedEquipmentId: unitId.get(repair.unitSerial)!,
+        workOrderId: repair.workOrderId,
+        summary: repair.summary,
+        replacementId: repair.replacementSerial ? unitId.get(repair.replacementSerial) : null,
+      })),
+      select: { id: true, workOrderId: true },
+    }),
+  );
+  const repairIdByJob = new Map(storedRepairs.map((repair) => [repair.workOrderId, repair.id]));
+  const repairParts = repairs.flatMap((repair) => {
+    const repairId = repairIdByJob.get(repair.workOrderId);
+    if (!repairId) return [];
+    return repair.spareSkus.flatMap((sku) => {
+      const partId = partBySku.get(sku)?.id;
+      const workOrderPartId = partId ? partLineId.get(`${repair.workOrderId}|${partId}`) : undefined;
+      return workOrderPartId ? [{ repairId, workOrderPartId }] : [];
+    });
+  });
+  if (repairParts.length) {
+    await prisma.equipmentRepairPart.createMany({ data: repairParts });
+  }
+  await prisma.$transaction(
+    [...partBySku.values()].map((bucket) =>
+      prisma.part.update({ where: { id: bucket.id }, data: { quantity: bucket.qty } }),
+    ),
+  );
+  await inChunks(
+    [
+      ...[...partBySku.values()].map((bucket) => ({
+        organizationId: org.id,
+        partId: bucket.id,
+        delta: bucket.opening,
+        reason: 'Stock initial',
+      })),
+      ...uses.map((line) => ({
+        organizationId: org.id,
+        partId: line.partId,
+        delta: -line.quantity,
+        reason: line.reason,
+      })),
+    ],
+    400,
+    async (part) => {
+      await prisma.stockMovement.createMany({ data: part });
+      return [];
+    },
+  );
+
+  const consumedIds = new Set(uses.map((line) => line.workOrderId));
+  const invoices = [
+    ...completedParents.filter((job) => consumedIds.has(job.id)).slice(0, 45),
+    ...completedParents.filter((job) => !consumedIds.has(job.id)).slice(0, 15),
+  ];
+  const quotes = jobs
+    .filter(
+      (job) =>
+        job.status === WorkOrderStatus.SCHEDULED &&
+        job.scheduledStart &&
+        new Date(job.scheduledStart).getTime() >= today0.getTime(),
+    )
+    .slice(0, 12)
+    .map((job) => {
+      const id = parentByNumber.get(job.number)?.id;
+      if (!id) throw new Error(`Devis sans intervention: ${job.number}`);
+      return { ...job, id, when: new Date(job.scheduledStart as Date) };
+    });
+
+  async function createDocument(
+    job: (typeof invoices)[number],
+    kind: DocumentKind,
+    sequence: number,
+  ) {
+    const hours = (job.estimatedMinutes ?? 60) / 60;
+    const lines: { label: string; quantity: number; unitPrice: number; sortOrder: number }[] = [
+      { label: "Main d'œuvre", quantity: hours, unitPrice: LABOR_RATE, sortOrder: 0 },
+    ];
+    if (job.withTransport) {
+      lines.push({ label: 'Déplacement', quantity: 1, unitPrice: TRAVEL_FEE, sortOrder: 1 });
+    }
+    if (kind === DocumentKind.INVOICE) {
+      uses
+        .filter((line) => line.workOrderId === job.id)
+        .forEach((line, index) => {
+          lines.push({
+            label: line.serial ? `${line.name} (${line.sku}) · n° ${line.serial}` : `${line.name} (${line.sku})`,
+            quantity: line.quantity,
+            unitPrice: line.sale,
+            sortOrder: 2 + index,
+          });
+        });
+    }
+    const subtotal = Math.round(lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
+    const total = Math.round(subtotal * (1 + TAX_RATE / 100));
+    const issued = kind === DocumentKind.QUOTE ? today0 : job.when;
     const due = new Date(issued);
     due.setDate(due.getDate() + 15);
-    const recent = today0.getTime() - issued.getTime() < 21 * 86_400_000;
+    const ageDays = (today0.getTime() - issued.getTime()) / 86_400_000;
     const status =
       kind === DocumentKind.QUOTE
-        ? recent
-          ? DocumentStatus.SENT
-          : DocumentStatus.ACCEPTED
-        : recent && i % 2 === 0
-          ? DocumentStatus.SENT
-          : DocumentStatus.PAID;
+        ? DocumentStatus.SENT
+        : ageDays > 21 && sequence % 5 !== 0
+          ? DocumentStatus.PAID
+          : DocumentStatus.SENT;
     await prisma.billingDocument.create({
       data: {
         organizationId: org.id,
-        customerId: job?.customerId ?? createdCustomers[i % createdCustomers.length].id,
-        workOrderId: billed[i].id,
+        customerId: job.customerId!,
+        workOrderId: job.id,
         kind,
-        number: `${kind === DocumentKind.INVOICE ? 'FAC' : 'DEV'}-${issued.getFullYear()}-${pad(i + 1, 5)}`,
+        number: `${kind === DocumentKind.INVOICE ? 'FAC' : 'DEV'}-${issued.getFullYear()}-${pad(sequence, 5)}`,
         status,
-        title: `${kind === DocumentKind.INVOICE ? 'Facture' : 'Devis'} ${billed[i].number}`,
+        title: job.title ?? (kind === DocumentKind.INVOICE ? 'Facture' : 'Devis'),
         currency: 'XAF',
         subtotal,
-        taxRate,
+        taxRate: TAX_RATE,
         total,
         issuedAt: issued,
         dueAt: due,
-        lines: {
-          create: [
-            { label: 'Main d\'œuvre', quantity: hoursBilled, unitPrice: 8500, sortOrder: 0 },
-            { label: 'Déplacement', quantity: 1, unitPrice: travel, sortOrder: 1 },
-          ],
-        },
+        lines: { create: lines },
       },
     });
   }
 
+  for (let i = 0; i < invoices.length; i++) await createDocument(invoices[i], DocumentKind.INVOICE, i + 1);
+  for (let i = 0; i < quotes.length; i++) await createDocument(quotes[i], DocumentKind.QUOTE, i + 1);
+
   const crypto = await import('crypto');
   await prisma.portalLink.createMany({
-    data: completed.slice(0, 20).map((row) => ({
+    data: completedParents.slice(0, 20).map((row) => ({
       organizationId: org.id,
       workOrderId: row.id,
       token: crypto.randomBytes(24).toString('hex'),
@@ -930,6 +1352,8 @@ async function main() {
     })),
   });
 
+  const installedCount = allUnits.filter((unit) => unit.status === EquipmentPlacement.INSTALLED).length;
+  const removedCount = allUnits.length - installedCount;
   console.log('—— Seed OK ——');
   console.log('Organisation : Climafrique (Douala)');
   console.log(`Login        : ${DEMO_EMAIL}`);
@@ -941,6 +1365,10 @@ async function main() {
   console.log(`Sites        : ${sites.length}`);
   console.log(`Interventions: ${allJobs.length}`);
   console.log(`  dont transport: ${childRows.length}`);
+  console.log(`Équipements  : ${installedCount} en place, ${removedCount} remplacés`);
+  console.log(`Réparations  : ${repairs.length}`);
+  console.log(`Factures     : ${invoices.length}`);
+  console.log(`Devis        : ${quotes.length}`);
 }
 
 main()

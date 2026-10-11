@@ -1,4 +1,5 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, Min, MinLength, ValidateNested } from 'class-validator';
 
 export class CreatePartDto {
   @IsString()
@@ -24,6 +25,11 @@ export class CreatePartDto {
   @IsNumber()
   @Min(0)
   unitCost!: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  salePrice?: number;
 }
 
 export class UpdatePartDto {
@@ -39,6 +45,11 @@ export class UpdatePartDto {
   @IsNumber()
   @Min(0)
   unitCost?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  salePrice?: number;
 
   @IsOptional()
   @IsNumber()
@@ -62,4 +73,69 @@ export class UsePartOnWorkOrderDto {
   @IsNumber()
   @Min(0.01)
   quantity!: number;
+}
+
+export class InstallEquipmentDto {
+  @IsString()
+  partId!: string;
+
+  @IsString()
+  @MinLength(1)
+  serialNumber!: string;
+
+  @IsOptional()
+  @IsString()
+  siteId?: string;
+
+  @IsOptional()
+  @IsString()
+  workOrderId?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class RemoveEquipmentDto {
+  @IsOptional()
+  @IsBoolean()
+  returnToStock?: boolean;
+}
+
+export class RepairPartDto {
+  @IsString()
+  partId!: string;
+
+  @IsNumber()
+  @Min(0.01)
+  quantity!: number;
+}
+
+export class RepairReplacementDto {
+  @IsString()
+  partId!: string;
+
+  @IsString()
+  @MinLength(1)
+  serialNumber!: string;
+}
+
+export class RepairEquipmentDto {
+  @IsString()
+  installedEquipmentId!: string;
+
+  @IsString()
+  @MinLength(3)
+  summary!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RepairPartDto)
+  parts?: RepairPartDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RepairReplacementDto)
+  replacement?: RepairReplacementDto;
 }

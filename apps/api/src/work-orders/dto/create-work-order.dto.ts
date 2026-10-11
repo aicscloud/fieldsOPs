@@ -8,7 +8,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { WorkOrderPriority } from '@prisma/client';
+import { InterventionKind, WorkOrderPriority } from '@prisma/client';
 
 export class CreateWorkOrderDto {
   @IsString()
@@ -29,6 +29,9 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsString()
   typeId?: string;
+
+  @IsEnum(InterventionKind)
+  kind!: InterventionKind;
 
   @IsOptional()
   @IsEnum(WorkOrderPriority)

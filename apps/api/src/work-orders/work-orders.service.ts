@@ -86,7 +86,10 @@ const workOrderInclude = {
   timeEntries: { orderBy: { startedAt: 'desc' as const } },
   events: { orderBy: { createdAt: 'desc' as const }, take: 20 },
   partsUsed: {
-    include: { part: true },
+    include: {
+      part: true,
+      installed: { select: { id: true, serialNumber: true, status: true } },
+    },
     orderBy: { createdAt: 'desc' as const },
   },
 };
@@ -295,13 +298,8 @@ export class WorkOrdersService {
 
   async create(user: AuthUser, dto: CreateWorkOrderDto) {
     await this.ensureCustomerAndSite(user, dto.customerId, dto.siteId);
-    const type = dto.typeId ? await this.ensureType(user, dto.typeId) : null;
+    if (dto.typeId) await this.ensureType(user, dto.typeId);
 
-    if (type?.requiresTransport && (!dto.fieldWorkerId || !dto.transporterId)) {
-      throw new BadRequestException(
-        'Cette intervention nécessite un technicien et un transporteur',
-      );
-    }
     if (dto.fieldWorkerId && dto.fieldWorkerId === dto.transporterId) {
       throw new BadRequestException(
         'Le technicien et le transporteur doivent être deux personnes',
@@ -366,6 +364,7 @@ export class WorkOrdersService {
           customerId: dto.customerId,
           siteId: dto.siteId,
           typeId: dto.typeId,
+          kind: dto.kind,
           priority: dto.priority,
           status,
           team: TeamGroup.FIELD,
@@ -404,6 +403,7 @@ export class WorkOrdersService {
             description: `Livraison des équipements pour ${number}`,
             customerId: dto.customerId,
             siteId: dto.siteId,
+            kind: dto.kind,
             priority: dto.priority,
             status: WorkOrderStatus.ASSIGNED,
             team: TeamGroup.TRANSPORT,

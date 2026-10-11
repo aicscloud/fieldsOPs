@@ -21,6 +21,7 @@ type Site = {
   contactName?: string | null;
   contactPhone?: string | null;
   customer?: { id: string; name: string };
+  _count?: { installedEquipment: number };
 };
 
 export default function SitesPage() {
@@ -289,6 +290,12 @@ export default function SitesPage() {
                   site.latitude != null && site.longitude != null
                     ? `${site.latitude}, ${site.longitude}`
                     : '',
+              },
+              {
+                key: 'equipment',
+                header: 'Équipements',
+                sortValue: (site) => site._count?.installedEquipment ?? 0,
+                render: (site) => site._count?.installedEquipment ?? 0,
               },
               {
                 key: 'contact',

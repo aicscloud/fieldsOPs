@@ -17,6 +17,8 @@ import {
   UserRound,
 } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
+import { InstallEquipment } from '@/components/InstallEquipment';
+import { RepairEquipment } from '@/components/RepairEquipment';
 import { Pagination, usePager } from '@/components/Pagination';
 import { SearchSelect } from '@/components/SearchSelect';
 import { Button, EmptyState, PageLoading, StatusBadge, Toast } from '@/components/ui';
@@ -28,9 +30,11 @@ type WorkOrder = {
   number: string;
   title: string;
   status: string;
+  kind?: 'INSTALLATION' | 'REPAIR' | 'REPLACEMENT' | null;
   scheduledStart?: string | null;
   scheduledEnd?: string | null;
   site?: {
+    id?: string;
     name: string;
     address: string;
     city?: string | null;
@@ -416,6 +420,34 @@ export default function FieldPage() {
                 ) : null}
 
                 <div className="field-body">
+                  {detail.kind !== 'INSTALLATION' ? (
+                    <article className="field-panel">
+                      <div className="field-panel-title">
+                        {detail.kind === 'REPLACEMENT' ? 'Changer un équipement' : 'Réparer un équipement'}
+                      </div>
+                      <RepairEquipment
+                        workOrderId={detail.id}
+                        siteId={detail.site?.id}
+                        replacementOnly={detail.kind === 'REPLACEMENT'}
+                        onDone={() => {
+                          setToast(detail.kind === 'REPLACEMENT' ? 'Changement enregistré' : 'Réparation enregistrée');
+                          void loadDetail(detail.id);
+                        }}
+                      />
+                    </article>
+                  ) : null}
+                  {detail.kind !== 'REPAIR' && detail.kind !== 'REPLACEMENT' ? (
+                    <article className="field-panel">
+                      <div className="field-panel-title">Installer un équipement</div>
+                      <InstallEquipment
+                        workOrderId={detail.id}
+                        onDone={() => {
+                          setToast('Équipement identifié sur le site');
+                          void loadDetail(detail.id);
+                        }}
+                      />
+                    </article>
+                  ) : null}
                   <article className="field-panel field-notes-card">
                     <div className="field-panel-title">
                       <StickyNote size={16} />

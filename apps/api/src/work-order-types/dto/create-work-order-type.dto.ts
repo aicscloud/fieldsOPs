@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -7,6 +8,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { InterventionKind } from '@prisma/client';
 
 export class CreateWorkOrderTypeDto {
   @IsString()
@@ -17,6 +19,9 @@ export class CreateWorkOrderTypeDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsEnum(InterventionKind)
+  kind!: InterventionKind;
 
   @IsOptional()
   @IsInt()

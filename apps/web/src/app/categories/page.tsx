@@ -7,19 +7,26 @@ import { SearchSelect } from '@/components/SearchSelect';
 import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 
+type Kind = 'INSTALLATION' | 'REPAIR' | 'REPLACEMENT';
+
+const KIND_OPTIONS = [
+  { value: 'INSTALLATION', label: 'Installation' },
+  { value: 'REPAIR', label: 'Réparation' },
+  { value: 'REPLACEMENT', label: 'Changement' },
+];
+
+function kindLabel(kind?: string | null) {
+  return KIND_OPTIONS.find((item) => item.value === kind)?.label ?? 'À classer';
+}
+
 type Category = {
   id: string;
   name: string;
   description?: string | null;
+  kind?: Kind | null;
   defaultDuration?: number | null;
-  requiresTransport?: boolean;
   active: boolean;
 };
-
-const TEAM_OPTIONS = [
-  { value: 'field', label: 'Technicien' },
-  { value: 'both', label: 'Tech + transport' },
-];
 
 const ACTIVE_OPTIONS = [
   { value: 'yes', label: 'Actif' },
@@ -32,10 +39,10 @@ export default function CategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
-  const [requiresTransport, setRequiresTransport] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [kind, setKind] = useState<Kind | ''>('');
   const [q, setQ] = useState('');
-  const [team, setTeam] = useState('');
+  const [kindFilter, setKindFilter] = useState('');
   const [active, setActive] = useState('');
 
   async function load() {
@@ -57,45 +64,48 @@ export default function CategoriesPage() {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return categories.filter((c) => {
-      if (team === 'both' && !c.requiresTransport) return false;
-      if (team === 'field' && c.requiresTransport) return false;
+      if (kindFilter && c.kind !== kindFilter) return false;
       if (active === 'yes' && !c.active) return false;
       if (active === 'no' && c.active) return false;
       if (!needle) return true;
       const hay = `${c.name} ${c.description ?? ''}`.toLowerCase();
       return hay.includes(needle);
     });
-  }, [categories, q, team, active]);
+  }, [categories, q, active, kindFilter]);
 
   function closeForm() {
     setOpen(false);
     setEditing(null);
-    setRequiresTransport(false);
     setIsActive(true);
+    setKind('');
   }
 
   function openCreate() {
     setEditing(null);
-    setRequiresTransport(false);
     setIsActive(true);
+    setKind('');
     setOpen(true);
   }
 
   function openEdit(category: Category) {
     setOpen(false);
     setEditing(category);
-    setRequiresTransport(!!category.requiresTransport);
     setIsActive(category.active);
+    setKind(category.kind ?? '');
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    if (!kind) {
+      setError('Choisissez le grand type : installation, réparation ou changement.');
+      return;
+    }
     const body = {
       name: form.get('name'),
       description: form.get('description') || undefined,
       defaultDuration: Number(form.get('defaultDuration') || 60),
-      requiresTransport,
+      kind,
       ...(editing ? { active: isActive } : {}),
     };
     try {
@@ -133,6 +143,15 @@ export default function CategoriesPage() {
       >
         <form className="form-stack" key={editing?.id ?? 'new'} onSubmit={onSubmit}>
           <label className="field">
+            <span>Grand type</span>
+            <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)} required>
+              <option value="">Choisir…</option>
+              {KIND_OPTIONS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
             <span>Nom</span>
             <input className="input" name="name" required defaultValue={editing?.name} />
           </label>
@@ -149,14 +168,6 @@ export default function CategoriesPage() {
               defaultValue={editing?.defaultDuration ?? 60}
               min={15}
             />
-          </label>
-          <label className="field" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={requiresTransport}
-              onChange={(e) => setRequiresTransport(e.target.checked)}
-            />
-            <span>Technicien et transporteur</span>
           </label>
           {editing ? (
             <label className="field" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -186,12 +197,12 @@ export default function CategoriesPage() {
             />
             <SearchSelect
               compact
-              value={team}
-              selectedLabel={TEAM_OPTIONS.find((o) => o.value === team)?.label}
-              placeholder="Équipe"
-              staticOptions={TEAM_OPTIONS}
-              loadOptions={async () => TEAM_OPTIONS}
-              onChange={setTeam}
+              value={kindFilter}
+              selectedLabel={KIND_OPTIONS.find((item) => item.value === kindFilter)?.label}
+              placeholder="Grand type"
+              staticOptions={KIND_OPTIONS}
+              loadOptions={async () => KIND_OPTIONS}
+              onChange={setKindFilter}
               allowClear
             />
             <SearchSelect
@@ -218,6 +229,12 @@ export default function CategoriesPage() {
               render: (c) => c.name,
             },
             {
+              key: 'kind',
+              header: 'Grand type',
+              sortValue: (c) => kindLabel(c.kind),
+              render: (c) => kindLabel(c.kind),
+            },
+            {
               key: 'description',
               header: 'Description',
               sortValue: (c) => c.description || '',
@@ -228,12 +245,6 @@ export default function CategoriesPage() {
               header: 'Durée',
               sortValue: (c) => c.defaultDuration ?? 0,
               render: (c) => (c.defaultDuration ? `${c.defaultDuration} min` : ''),
-            },
-            {
-              key: 'requiresTransport',
-              header: 'Équipe',
-              sortValue: (c) => (c.requiresTransport ? 1 : 0),
-              render: (c) => (c.requiresTransport ? 'Tech + transport' : 'Technicien'),
             },
             {
               key: 'active',

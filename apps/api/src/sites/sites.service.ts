@@ -31,7 +31,14 @@ export class SitesService {
             }
           : {}),
       },
-      include: { customer: { select: { id: true, name: true } } },
+      include: {
+        customer: { select: { id: true, name: true } },
+        _count: {
+          select: {
+            installedEquipment: { where: { status: 'INSTALLED' } },
+          },
+        },
+      },
       orderBy: { name: 'asc' },
       ...(take != null ? { take } : {}),
     });
