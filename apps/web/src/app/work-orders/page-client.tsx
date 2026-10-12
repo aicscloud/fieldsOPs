@@ -401,6 +401,17 @@ export default function WorkOrdersClient() {
     setPlanEnd(toLocalInput(new Date(slot.end)));
   }
 
+  const planConflicts =
+    availability && planStart && planEnd
+      ? availability.busy.filter((item) => {
+          const a = new Date(planStart).getTime();
+          const b = new Date(planEnd).getTime();
+          const from = new Date(item.start).getTime();
+          const to = new Date(item.end).getTime();
+          return !Number.isNaN(a) && !Number.isNaN(b) && b > a && a < to && b > from;
+        })
+      : [];
+
   async function schedule(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selected) return;
@@ -412,6 +423,10 @@ export default function WorkOrdersClient() {
     }
     if (end <= start) {
       setToast('La fin doit être après le début');
+      return;
+    }
+    if (planConflicts.length) {
+      setToast(`Créneau indisponible : ${planConflicts[0].number} est déjà planifiée.`);
       return;
     }
     setSaving(true);
@@ -781,11 +796,14 @@ export default function WorkOrdersClient() {
                             );
                           })}
                         </div>
-                      ) : !availLoading ? (
-                        <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-                          Aucun créneau libre ce jour.
-                        </p>
+                      ) : !availLoading && availability ? (
+                        <p className="plan-alert">Aucun créneau libre ce jour.</p>
                       ) : null}
+                      {planConflicts.map((item) => (
+                        <p key={`${item.number}-${item.start}`} className="plan-alert">
+                          Chevauche {item.number} · {formatSlot(item)} · {item.title}
+                        </p>
+                      ))}
                       {availability?.busy?.length ? (
                         <ul className="plan-busy-list" style={{ marginTop: 10 }}>
                           {availability.busy.map((b) => (

@@ -14,6 +14,7 @@ export type SearchOption = {
   value: string;
   label: string;
   meta?: string;
+  detail?: string;
 };
 
 type Props = {

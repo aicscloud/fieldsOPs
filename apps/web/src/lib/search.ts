@@ -45,11 +45,23 @@ export async function searchGroups(q: string): Promise<SearchOption[]> {
     .map((g) => ({ value: g.id, label: g.name }));
 }
 
+function detailLines(...parts: (string | null | undefined)[]) {
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => !!part)
+    .join('\n');
+}
+
 export async function searchCustomers(q: string): Promise<SearchOption[]> {
-  const rows = await api<{ id: string; name: string }[]>(
-    `/customers${qs({ q, take: String(TAKE) })}`,
-  );
-  return rows.map((c) => ({ value: c.id, label: c.name }));
+  const rows = await api<
+    { id: string; name: string; phone?: string | null; email?: string | null; address?: string | null }[]
+  >(`/customers${qs({ q, take: String(TAKE) })}`);
+  return rows.map((c) => ({
+    value: c.id,
+    label: c.name,
+    meta: [c.phone, c.email].filter(Boolean).join(' · '),
+    detail: detailLines(c.phone, c.email, c.address),
+  }));
 }
 
 export async function searchSites(
@@ -57,13 +69,25 @@ export async function searchSites(
   customerId?: string,
 ): Promise<SearchOption[]> {
   const rows = await api<
-    { id: string; name: string; address: string; city?: string | null }[]
+    {
+      id: string;
+      name: string;
+      address: string;
+      city?: string | null;
+      contactName?: string | null;
+      contactPhone?: string | null;
+    }[]
   >(`/sites${qs({ q, take: String(TAKE), customerId })}`);
-  return rows.map((s) => ({
-    value: s.id,
-    label: s.name,
-    meta: `${s.address}${s.city ? `, ${s.city}` : ''}`,
-  }));
+  return rows.map((s) => {
+    const place = `${s.address}${s.city ? `, ${s.city}` : ''}`;
+    const contact = [s.contactName, s.contactPhone].filter(Boolean).join(' · ');
+    return {
+      value: s.id,
+      label: s.name,
+      meta: place,
+      detail: detailLines(place, contact),
+    };
+  });
 }
 
 export async function searchWorkers(
@@ -71,7 +95,14 @@ export async function searchWorkers(
   groupId?: string,
 ): Promise<SearchOption[]> {
   const rows = await api<
-    { id: string; firstName: string; lastName: string; role: string }[]
+    {
+      id: string;
+      firstName: string;
+      lastName: string;
+      phone?: string | null;
+      email?: string | null;
+      group?: { name: string } | null;
+    }[]
   >(
     `/users${qs({
       q,
@@ -83,6 +114,8 @@ export async function searchWorkers(
   return rows.map((w) => ({
     value: w.id,
     label: `${w.firstName} ${w.lastName}`,
+    meta: [w.phone, w.group?.name].filter(Boolean).join(' · '),
+    detail: detailLines(w.phone, w.email, w.group?.name),
   }));
 }
 
@@ -113,6 +146,7 @@ export async function searchParts(q: string): Promise<SearchOption[]> {
     value: p.id,
     label: p.name,
     meta: `${p.sku} · vente ${(p.salePrice ?? p.unitCost ?? 0).toFixed(2)} € · stock ${p.quantity} ${p.unit}`,
+    detail: detailLines(`Réf. ${p.sku}`, `Stock ${p.quantity} ${p.unit}`),
   }));
 }
 

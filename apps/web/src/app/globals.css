@@ -1601,7 +1601,15 @@ select.input,
 
 .wo-create {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 268px;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.wo-create-main {
+  display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .wo-intro {
@@ -1743,6 +1751,86 @@ select.input,
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
+}
+
+.wo-create-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.wo-recap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--primary-soft);
+  overflow: hidden;
+}
+
+.wo-recap h3 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.wo-recap dl {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.wo-recap dl > div {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.wo-recap-icon {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 16px;
+}
+
+.wo-recap dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.wo-recap dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wo-recap dd.is-empty {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.wo-recap-extra {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+@media (max-width: 720px) {
+  .wo-create {
+    grid-template-columns: 1fr;
+  }
 }
 
 
@@ -3448,6 +3536,29 @@ select.input,
   border-color: var(--primary);
   background: var(--primary-soft);
   color: var(--primary);
+}
+
+.plan-alert {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--danger);
+}
+
+.wo-spare-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.wo-spare-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
 }
 
 .plan-busy-list {
