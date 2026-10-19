@@ -83,9 +83,6 @@ export default function LoginPage() {
           <p className="muted" style={{ marginTop: 18 }}>
             {m.auth.noAccount} <Link href="/register">{m.auth.createOrg}</Link>
           </p>
-          <p className="muted" style={{ marginTop: 8 }}>
-            <Link href="/admin/login">Connexion administration</Link>
-          </p>
         </div>
       </section>
       <aside className="auth-panel">
