@@ -188,11 +188,11 @@ export default function SettingsPage() {
       });
       hydrate(updated);
       const session = getSession();
-      if (session) {
+      if (session?.organization) {
         saveSession({
           ...session,
           organization: {
-            ...session.organization,
+            id: session.organization.id,
             name: updated.name,
             country: updated.country,
             currency: updated.currency,
