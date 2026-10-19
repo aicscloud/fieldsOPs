@@ -9,6 +9,7 @@ import { GroupsModule } from './groups/groups.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { InventoryModule } from './inventory/inventory.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { PlatformModule } from './platform/platform.module';
 import { PortalModule } from './portal/portal.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SitesModule } from './sites/sites.module';
@@ -37,6 +38,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     BillingModule,
     InventoryModule,
     PortalModule,
+    PlatformModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

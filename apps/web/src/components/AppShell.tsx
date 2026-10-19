@@ -17,7 +17,6 @@ import {
   PanelLeftOpen,
   Search,
   Settings,
-  Shield,
   Sun,
   Tags,
   Truck,
@@ -100,8 +99,12 @@ export function AppShell({
       router.replace('/login');
       return;
     }
+    if (session.role === 'PLATFORM_ADMIN') {
+      router.replace('/admin');
+      return;
+    }
     setRole(session.role ?? null);
-    setOrgName(session.organization.name);
+    setOrgName(session.organization?.name ?? '');
     setUserName(`${session.user.firstName} ${session.user.lastName}`);
     if (session.role === 'FIELD_WORKER' && !pathname.startsWith('/field')) {
       router.replace('/field');
@@ -172,17 +175,7 @@ export function AppShell({
             links: [{ href: '/field', label: 'missions', icon: Truck }],
           },
         ]
-      : groups.map((group) =>
-          group.label === 'organization' && (role === 'OWNER' || role === 'MANAGER')
-            ? {
-                ...group,
-                links: [
-                  ...group.links,
-                  { href: '/admin', label: 'admin', icon: Shield },
-                ],
-              }
-            : group,
-        );
+      : groups;
 
   return (
     <div className={`app-shell ${collapsed ? 'collapsed' : ''}`}>

@@ -15,12 +15,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (getSession()) {
-      if (getSession()?.role === 'FIELD_WORKER') {
-        router.replace('/field');
-      } else {
-        router.replace('/dashboard');
-      }
+    const session = getSession();
+    if (session) {
+      if (session.role === 'PLATFORM_ADMIN') router.replace('/admin');
+      else if (session.role === 'FIELD_WORKER') router.replace('/field');
+      else router.replace('/dashboard');
     }
   }, [router]);
 
@@ -83,6 +82,9 @@ export default function LoginPage() {
           </form>
           <p className="muted" style={{ marginTop: 18 }}>
             {m.auth.noAccount} <Link href="/register">{m.auth.createOrg}</Link>
+          </p>
+          <p className="muted" style={{ marginTop: 8 }}>
+            <Link href="/admin/login">Connexion administration</Link>
           </p>
         </div>
       </section>

@@ -29,6 +29,13 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('platform-login')
+  platformLogin(@Body() dto: LoginDto) {
+    return this.authService.platformLogin(dto);
+  }
+
+  @Public()
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto.refreshToken);

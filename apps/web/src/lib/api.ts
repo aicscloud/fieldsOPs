@@ -14,14 +14,14 @@ export type AuthSession = {
     firstName: string;
     lastName: string;
   };
-  organization: {
+  organization?: {
     id: string;
     name: string;
     country: string;
     currency: string;
     timezone: string;
     language: string;
-  };
+  } | null;
   role?: string;
 };
 
@@ -69,7 +69,8 @@ export async function api<T>(
   if (!response.ok) {
     if (response.status === 401 && auth && typeof window !== 'undefined') {
       clearSession();
-      window.location.replace('/login');
+      const next = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login';
+      window.location.replace(next);
       throw new Error('Session expirée');
     }
     const body = await response.json().catch(() => ({}));

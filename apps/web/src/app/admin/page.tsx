@@ -1,144 +1,135 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { AppShell } from '@/components/AppShell';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
-import { EmptyState, PageLoading } from '@/components/ui';
-import { api } from '@/lib/api';
+import { Button, EmptyState, PageLoading } from '@/components/ui';
+import { api, clearSession, getSession } from '@/lib/api';
 
-type Member = {
+type OrgRow = {
   id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  name: string;
+  email?: string | null;
   phone?: string | null;
-  role: string;
-  team?: string | null;
-  status?: string;
-  group?: { id: string; name: string } | null;
+  country: string;
+  city?: string | null;
+  createdAt: string;
+  members: number;
+  customers: number;
+  workOrders: number;
 };
 
-const ROLES: Record<string, string> = {
-  OWNER: 'Propriétaire',
-  MANAGER: 'Responsable',
-  FIELD_WORKER: 'Technicien',
-};
+type Payload = { count: number; organizations: OrgRow[] };
 
-const TEAMS: Record<string, string> = {
-  FIELD: 'Terrain',
-  TRANSPORT: 'Transport',
-};
-
-const STATUSES: Record<string, string> = {
-  ACTIVE: 'Actif',
-  INVITED: 'Invité',
-  SUSPENDED: 'Suspendu',
-};
-
-export default function AdminPage() {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function PlatformAdminPage() {
+  const router = useRouter();
+  const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api<Member[]>('/users')
-      .then((rows) => {
-        setMembers(rows);
+    const session = getSession();
+    if (session?.role !== 'PLATFORM_ADMIN') {
+      router.replace('/admin/login');
+      return;
+    }
+    api<Payload>('/platform/organizations')
+      .then((payload) => {
+        setData(payload);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Erreur'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [router]);
 
-  const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return members;
-    return members.filter((member) =>
-      [member.firstName, member.lastName, member.email, member.phone, member.group?.name]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [members, q]);
+  function logout() {
+    clearSession();
+    router.replace('/admin/login');
+  }
 
   return (
-    <AppShell title="Administration">
-      <p className="muted" style={{ marginTop: 0 }}>
-        {members.length} compte{members.length > 1 ? 's' : ''}
-      </p>
-      <input
-        className="input"
-        placeholder="Nom, e-mail, téléphone…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        aria-label="Rechercher un utilisateur"
-        style={{ maxWidth: 320, marginBottom: 14 }}
-      />
+    <main className="page" style={{ maxWidth: 1100, margin: '0 auto', minHeight: '100vh', width: '100%' }}>
+      <header className="page-header">
+        <div>
+          <h1 style={{ margin: 0 }}>Plateforme</h1>
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            Organisations inscrites sur Intervenio
+          </p>
+        </div>
+        <Button type="button" variant="secondary" onClick={logout}>
+          Déconnexion
+        </Button>
+      </header>
+
       {error ? <div className="error-box">{error}</div> : null}
       {loading ? (
-        <PageLoading height={48} rows={6} />
-      ) : rows.length ? (
-        <DataTable
-          rows={rows}
-          rowKey={(row) => row.id}
-          pageSize={20}
-          columns={[
-            {
-              key: 'name',
-              header: 'Nom',
-              sortable: true,
-              sortValue: (row) => `${row.lastName} ${row.firstName}`,
-              render: (row) => (
-                <strong>
-                  {row.firstName} {row.lastName}
-                </strong>
-              ),
-            },
-            {
-              key: 'email',
-              header: 'E-mail',
-              sortable: true,
-              sortValue: (row) => row.email,
-              render: (row) => row.email,
-            },
-            {
-              key: 'phone',
-              header: 'Téléphone',
-              render: (row) => row.phone || '—',
-            },
-            {
-              key: 'role',
-              header: 'Rôle',
-              sortable: true,
-              sortValue: (row) => row.role,
-              render: (row) => ROLES[row.role] ?? row.role,
-            },
-            {
-              key: 'team',
-              header: 'Équipe',
-              render: (row) => TEAMS[row.team || ''] ?? row.team ?? '—',
-            },
-            {
-              key: 'group',
-              header: 'Groupe',
-              sortable: true,
-              sortValue: (row) => row.group?.name ?? '',
-              render: (row) => row.group?.name || '—',
-            },
-            {
-              key: 'status',
-              header: 'Statut',
-              sortable: true,
-              sortValue: (row) => row.status ?? '',
-              render: (row) => STATUSES[row.status || ''] ?? row.status ?? '—',
-            },
-          ]}
-        />
+        <PageLoading height={48} rows={5} />
       ) : (
-        <EmptyState title="Aucun utilisateur" />
+        <>
+          <p style={{ fontSize: '2rem', margin: '8px 0 18px' }}>
+            <strong>{data?.count ?? 0}</strong>{' '}
+            <span className="muted" style={{ fontSize: '1rem' }}>
+              organisation{(data?.count ?? 0) > 1 ? 's' : ''}
+            </span>
+          </p>
+          {data?.organizations.length ? (
+            <DataTable
+              rows={data.organizations}
+              rowKey={(row) => row.id}
+              pageSize={20}
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Organisation',
+                  sortable: true,
+                  sortValue: (row) => row.name,
+                  render: (row) => <strong>{row.name}</strong>,
+                },
+                {
+                  key: 'email',
+                  header: 'E-mail',
+                  render: (row) => row.email || '—',
+                },
+                {
+                  key: 'place',
+                  header: 'Lieu',
+                  render: (row) => [row.city, row.country].filter(Boolean).join(', ') || '—',
+                },
+                {
+                  key: 'members',
+                  header: 'Comptes',
+                  sortable: true,
+                  sortValue: (row) => row.members,
+                  render: (row) => row.members,
+                },
+                {
+                  key: 'customers',
+                  header: 'Clients',
+                  sortable: true,
+                  sortValue: (row) => row.customers,
+                  render: (row) => row.customers,
+                },
+                {
+                  key: 'workOrders',
+                  header: 'Interventions',
+                  sortable: true,
+                  sortValue: (row) => row.workOrders,
+                  render: (row) => row.workOrders,
+                },
+                {
+                  key: 'createdAt',
+                  header: 'Créée le',
+                  sortable: true,
+                  sortValue: (row) => row.createdAt,
+                  render: (row) => new Date(row.createdAt).toLocaleDateString('fr-FR'),
+                },
+              ]}
+            />
+          ) : (
+            <EmptyState title="Aucune organisation" />
+          )}
+        </>
       )}
-    </AppShell>
+    </main>
   );
 }

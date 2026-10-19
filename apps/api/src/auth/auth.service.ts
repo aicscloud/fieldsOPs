@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
+  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,19 +12,57 @@ import { MembershipRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser, FieldOpsJwtPayload } from './auth.types';
+import { AuthUser, FieldOpsJwtPayload, PLATFORM_ADMIN_ROLE } from './auth.types';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
+
+  async onModuleInit() {
+    const email = process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase();
+    const password = process.env.PLATFORM_ADMIN_PASSWORD ?? '';
+    if (!email || password.length < 8) return;
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+      include: { memberships: { select: { id: true } } },
+    });
+    if (existing?.memberships.length) {
+      this.logger.warn(`Platform admin skipped: ${email} already belongs to an organization`);
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    if (!existing) {
+      await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName: 'Admin',
+          lastName: 'Intervenio',
+          status: UserStatus.ACTIVE,
+          platformAdmin: true,
+        },
+      });
+      this.logger.log(`Platform admin ready: ${email}`);
+      return;
+    }
+
+    await this.prisma.user.update({
+      where: { id: existing.id },
+      data: { passwordHash, platformAdmin: true, status: UserStatus.ACTIVE },
+    });
+  }
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({
@@ -143,6 +183,32 @@ export class AuthService {
     };
   }
 
+  async platformLogin(dto: LoginDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+    if (!user?.platformAdmin || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const valid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const tokens = await this.issueTokens({
+      userId: user.id,
+      organizationId: '',
+      email: user.email,
+      role: PLATFORM_ADMIN_ROLE,
+    });
+
+    return {
+      user: this.sanitizeUser(user),
+      role: PLATFORM_ADMIN_ROLE,
+      ...tokens,
+    };
+  }
+
   async refresh(refreshToken: string) {
     let payload: FieldOpsJwtPayload;
     try {
@@ -195,7 +261,7 @@ export class AuthService {
       await this.prisma.refreshToken.updateMany({
         where: {
           userId: user.userId,
-          organizationId: user.organizationId,
+          organizationId: user.organizationId || null,
           revokedAt: null,
         },
         data: { revokedAt: new Date() },
@@ -330,7 +396,7 @@ export class AuthService {
 
     await this.prisma.refreshToken.create({
       data: {
-        organizationId: user.organizationId,
+        organizationId: user.organizationId || null,
         userId: user.userId,
         tokenHash: this.hashToken(refreshToken),
         expiresAt,
