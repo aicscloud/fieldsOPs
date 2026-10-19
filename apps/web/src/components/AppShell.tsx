@@ -17,6 +17,7 @@ import {
   PanelLeftOpen,
   Search,
   Settings,
+  Shield,
   Sun,
   Tags,
   Truck,
@@ -171,7 +172,17 @@ export function AppShell({
             links: [{ href: '/field', label: 'missions', icon: Truck }],
           },
         ]
-      : groups;
+      : groups.map((group) =>
+          group.label === 'organization' && (role === 'OWNER' || role === 'MANAGER')
+            ? {
+                ...group,
+                links: [
+                  ...group.links,
+                  { href: '/admin', label: 'admin', icon: Shield },
+                ],
+              }
+            : group,
+        );
 
   return (
     <div className={`app-shell ${collapsed ? 'collapsed' : ''}`}>

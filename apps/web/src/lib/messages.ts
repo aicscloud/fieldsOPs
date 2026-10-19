@@ -44,6 +44,7 @@ const fr: Catalog = {
     sites: 'Sites',
     categories: 'Catégories',
     settings: 'Paramètres',
+    admin: 'Administration',
   },
   shell: {
     search: 'Rechercher une intervention…',
@@ -179,6 +180,7 @@ const en: Catalog = {
     sites: 'Sites',
     categories: 'Categories',
     settings: 'Settings',
+    admin: 'Admin',
   },
   shell: {
     search: 'Search a job…',
