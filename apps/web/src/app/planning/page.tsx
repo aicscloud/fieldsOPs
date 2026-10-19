@@ -730,7 +730,6 @@ export default function PlanningPage() {
       title="Planning"
       actions={
         <Button type="button" onClick={() => setCreateOpen(true)}>
-          <Plus size={16} />
           Créer une intervention
         </Button>
       }

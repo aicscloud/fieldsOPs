@@ -706,9 +706,6 @@ export function QuickCreateWorkOrder({
   return (
     <div className="wo-create">
       <div className="wo-create-main">
-      <p className="wo-intro">
-        Suivez les étapes. Le technicien et le transporteur se décident ici, pas dans la catégorie.
-      </p>
       {tempPassword ? (
         <div className="error-box" style={{ borderColor: 'var(--success)' }}>
           Compte créé. Mot de passe temporaire : <strong>{tempPassword}</strong>
@@ -739,7 +736,7 @@ export function QuickCreateWorkOrder({
                   ) : null}
                 </span>
                 {openId !== step.id ? (
-                  <span className="wo-step-edit">{step.done ? 'Modifier' : 'Compléter'}</span>
+                  <span className="wo-step-edit">{step.done ? 'Modifier' : 'Compléte'}</span>
                 ) : null}
               </button>
 
@@ -805,9 +802,7 @@ export function QuickCreateWorkOrder({
                           )}
                         </>
                       ) : (
-                        <p className="muted" style={{ margin: 0 }}>
-                          Choisissez d’abord le grand type. Les catégories de ce type s’affichent ensuite.
-                        </p>
+                        null
                       )}
                     </>
                   ) : null}

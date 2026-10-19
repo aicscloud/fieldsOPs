@@ -475,7 +475,6 @@ export default function WorkOrdersClient() {
       title="Interventions"
       actions={
         <Button type="button" onClick={() => setCreateOpen(true)}>
-          <Plus size={16} />
           Créer une intervention
         </Button>
       }
