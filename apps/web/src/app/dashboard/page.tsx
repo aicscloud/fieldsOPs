@@ -38,6 +38,8 @@ type Doc = {
   currency: string;
 };
 
+type ContractSummary = { overdue: number; due: number; openVisits: number; total: number };
+
 const DONE = new Set(['COMPLETED', 'CANCELLED', 'FAILED']);
 const LIVE = new Set(['EN_ROUTE', 'IN_PROGRESS', 'PAUSED']);
 
@@ -75,6 +77,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [contracts, setContracts] = useState<ContractSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -92,13 +95,15 @@ export default function DashboardPage() {
       api<WorkOrder[]>(`/work-orders?from=${from.toISOString()}&to=${to.toISOString()}`),
       api<WorkOrder[]>('/work-orders?unassigned=true'),
       api<Doc[]>('/billing').catch(() => [] as Doc[]),
+      api<ContractSummary>('/contracts/summary').catch(() => null),
     ])
-      .then(([s, list, loose, billing]) => {
+      .then(([s, list, loose, billing, contractSummary]) => {
         setStats(s);
         const byId = new Map<string, WorkOrder>();
         for (const order of [...list, ...loose]) byId.set(order.id, order);
         setOrders([...byId.values()]);
         setDocs(billing);
+        setContracts(contractSummary);
         setError(null);
       })
       .catch((err: Error) => setError(err.message))
@@ -239,6 +244,15 @@ export default function DashboardPage() {
               <strong className="dash-money">{money(billing.due, billing.currency)}</strong>
               <em>
                 {billing.count} facture{billing.count > 1 ? 's' : ''} ouverte{billing.count > 1 ? 's' : ''}
+              </em>
+            </Card>
+          </Link>
+          <Link href="/contracts" className="dash-metric-link">
+            <Card className={`dash-metric ${(contracts?.overdue ?? 0) > 0 ? 'is-alert' : ''}`}>
+              <span>Visites dues</span>
+              <strong>{(contracts?.overdue ?? 0) + (contracts?.due ?? 0)}</strong>
+              <em>
+                {contracts?.overdue ?? 0} en retard
               </em>
             </Card>
           </Link>

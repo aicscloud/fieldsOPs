@@ -65,4 +65,8 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsString()
   transportGroupId?: string;
+
+  @IsOptional()
+  @IsString()
+  contractId?: string;
 }

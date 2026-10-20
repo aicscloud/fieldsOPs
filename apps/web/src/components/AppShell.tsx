@@ -13,6 +13,7 @@ import {
   Menu,
   Moon,
   Package,
+  Repeat,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -54,6 +55,7 @@ const groups = [
     links: [
       { href: '/billing', label: 'billing', icon: FileText },
       { href: '/inventory', label: 'inventory', icon: Package },
+      { href: '/contracts', label: 'contracts', icon: Repeat },
     ],
   },
   {

@@ -212,16 +212,122 @@ export class InventoryService {
       orderBy: { installedAt: 'desc' },
     });
     if (!rows.length) return [];
-    const repairs = await this.prisma.equipmentRepair.groupBy({
-      by: ['installedEquipmentId'],
-      where: { installedEquipmentId: { in: rows.map((row) => row.id) } },
-      _count: { _all: true },
+    const ids = rows.map((row) => row.id);
+    const siteIds = [...new Set(rows.map((row) => row.siteId))];
+    const [repairs, contracts] = await Promise.all([
+      this.prisma.equipmentRepair.groupBy({
+        by: ['installedEquipmentId'],
+        where: { installedEquipmentId: { in: ids } },
+        _count: { _all: true },
+        _max: { createdAt: true },
+      }),
+      this.prisma.maintenanceContract.findMany({
+        where: {
+          organizationId: user.organizationId,
+          active: true,
+          OR: [
+            { installedEquipmentId: { in: ids } },
+            { siteId: { in: siteIds }, installedEquipmentId: null },
+          ],
+        },
+        select: {
+          id: true,
+          title: true,
+          intervalMonths: true,
+          nextDueAt: true,
+          lastVisitAt: true,
+          installedEquipmentId: true,
+          siteId: true,
+        },
+        orderBy: { nextDueAt: 'asc' },
+      }),
+    ]);
+    const byUnit = new Map(
+      repairs.map((row) => [
+        row.installedEquipmentId,
+        { count: row._count._all, lastAt: row._max.createdAt },
+      ]),
+    );
+    return rows.map((row) => {
+      const repair = byUnit.get(row.id);
+      const unitContract =
+        contracts.find((c) => c.installedEquipmentId === row.id) ??
+        contracts.find((c) => c.siteId === row.siteId && !c.installedEquipmentId) ??
+        null;
+      const lastVisitAt =
+        unitContract?.lastVisitAt ?? repair?.lastAt ?? row.installedAt;
+      return {
+        ...row,
+        lastVisitAt,
+        nextDueAt: unitContract?.nextDueAt ?? null,
+        contract: unitContract,
+        _count: { repairs: repair?.count ?? 0 },
+      };
     });
-    const byUnit = new Map(repairs.map((row) => [row.installedEquipmentId, row._count._all]));
-    return rows.map((row) => ({
-      ...row,
-      _count: { repairs: byUnit.get(row.id) ?? 0 },
-    }));
+  }
+
+  async getInstalled(user: AuthUser, id: string) {
+    const unit = await this.prisma.installedEquipment.findFirst({
+      where: { id, organizationId: user.organizationId },
+      include: {
+        ...installedInclude,
+        repairs: {
+          include: {
+            workOrder: { select: { id: true, number: true, title: true, status: true, completedAt: true } },
+            replacement: { select: { serialNumber: true, part: { select: { name: true } } } },
+            parts: {
+              include: {
+                workOrderPart: {
+                  include: { part: { select: { name: true, sku: true, unit: true } } },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        maintenanceContracts: {
+          where: { active: true },
+          include: {
+            type: { select: { name: true } },
+          },
+          orderBy: { nextDueAt: 'asc' },
+        },
+      },
+    });
+    if (!unit) throw new NotFoundException('Équipement introuvable');
+
+    const visitOr: Prisma.WorkOrderWhereInput[] = [
+      { contract: { installedEquipmentId: unit.id } },
+      { equipmentRepairs: { some: { installedEquipmentId: unit.id } } },
+    ];
+    if (unit.workOrderId) visitOr.push({ id: unit.workOrderId });
+
+    const visits = await this.prisma.workOrder.findMany({
+      where: {
+        organizationId: user.organizationId,
+        OR: visitOr,
+      },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        status: true,
+        kind: true,
+        scheduledStart: true,
+        completedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const lastVisitAt =
+      unit.maintenanceContracts[0]?.lastVisitAt ??
+      unit.repairs[0]?.createdAt ??
+      unit.installedAt;
+    const nextDueAt = unit.maintenanceContracts[0]?.nextDueAt ?? null;
+
+    return { ...unit, visits, lastVisitAt, nextDueAt };
   }
 
   async install(user: AuthUser, dto: InstallEquipmentDto, workOrderId?: string) {

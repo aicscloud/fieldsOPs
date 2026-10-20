@@ -365,6 +365,20 @@ export class WorkOrdersService {
       );
     }
 
+    if (dto.contractId) {
+      const contract = await this.prisma.maintenanceContract.findFirst({
+        where: {
+          id: dto.contractId,
+          organizationId: user.organizationId,
+          customerId: dto.customerId,
+          siteId: dto.siteId,
+        },
+      });
+      if (!contract) {
+        throw new BadRequestException('Contrat introuvable pour ce client et ce site');
+      }
+    }
+
     const number = await this.nextNumber(user.organizationId);
     const transportNumber = dto.transporterId
       ? await this.nextNumber(user.organizationId)
@@ -393,6 +407,7 @@ export class WorkOrdersService {
           scheduledStart,
           scheduledEnd,
           estimatedMinutes: dto.estimatedMinutes,
+          contractId: dto.contractId,
           events: {
             create: {
               organizationId: user.organizationId,
@@ -747,11 +762,26 @@ export class WorkOrdersService {
         });
       }
 
+      const completedAt = new Date();
+      if (workOrder.contractId) {
+        const contract = await tx.maintenanceContract.findFirst({
+          where: { id: workOrder.contractId, organizationId: user.organizationId },
+        });
+        if (contract?.active) {
+          const nextDueAt = new Date(completedAt);
+          nextDueAt.setMonth(nextDueAt.getMonth() + contract.intervalMonths);
+          await tx.maintenanceContract.update({
+            where: { id: contract.id },
+            data: { lastVisitAt: completedAt, nextDueAt },
+          });
+        }
+      }
+
       return tx.workOrder.update({
         where: { id },
         data: {
           status: WorkOrderStatus.COMPLETED,
-          completedAt: new Date(),
+          completedAt,
           events: {
             create: {
               organizationId: user.organizationId,

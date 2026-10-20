@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
+import { ParkDue, UnitHistoryDrawer } from '@/components/EquipmentPark';
 import { InstallEquipment } from '@/components/InstallEquipment';
 import { SearchSelect } from '@/components/SearchSelect';
 import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
@@ -25,6 +26,8 @@ type Installed = {
   serialNumber: string;
   status: 'INSTALLED' | 'REMOVED';
   installedAt: string;
+  lastVisitAt?: string | null;
+  nextDueAt?: string | null;
   notes?: string | null;
   part: { sku: string; name: string };
   customer: { name: string };
@@ -68,6 +71,7 @@ export default function InventoryPage() {
   const [siteLabel, setSiteLabel] = useState('');
   const [installOpen, setInstallOpen] = useState(false);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [unitId, setUnitId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -428,6 +432,7 @@ export default function InventoryPage() {
               rows={installedRows}
               rowKey={(row) => row.id}
               defaultSortKey="installedAt"
+              onRowClick={(row) => setUnitId(row.id)}
               empty={<EmptyState title="Aucun équipement identifié chez un client" />}
               columns={[
                 {
@@ -464,6 +469,21 @@ export default function InventoryPage() {
                   header: 'Installé le',
                   sortValue: (row) => row.installedAt,
                   render: (row) => new Date(row.installedAt).toLocaleDateString('fr-FR'),
+                },
+                {
+                  key: 'lastVisitAt',
+                  header: 'Dernière visite',
+                  sortValue: (row) => row.lastVisitAt ?? '',
+                  render: (row) =>
+                    row.lastVisitAt
+                      ? new Date(row.lastVisitAt).toLocaleDateString('fr-FR')
+                      : '—',
+                },
+                {
+                  key: 'nextDueAt',
+                  header: 'Prochaine',
+                  sortValue: (row) => row.nextDueAt ?? '',
+                  render: (row) => <ParkDue iso={row.nextDueAt} />,
                 },
                 {
                   key: 'repairs',
@@ -568,6 +588,7 @@ export default function InventoryPage() {
           )}
         </>
       )}
+      <UnitHistoryDrawer unitId={unitId} onClose={() => setUnitId(null)} />
     </AppShell>
   );
 }

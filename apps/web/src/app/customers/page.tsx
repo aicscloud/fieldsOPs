@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
+import { EquipmentPark } from '@/components/EquipmentPark';
+import { Button, Drawer, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 
 const TYPE_OPTIONS = [
@@ -41,6 +42,7 @@ export default function CustomersPage() {
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
+  const [parkCustomer, setParkCustomer] = useState<Customer | null>(null);
 
   async function load() {
     setLoading(true);
@@ -222,6 +224,7 @@ export default function CustomersPage() {
           rows={filtered}
           rowKey={(c) => c.id}
           defaultSortKey="name"
+          onRowClick={setParkCustomer}
           empty={<EmptyState title="Aucun client" />}
           columns={[
             {
@@ -270,7 +273,15 @@ export default function CustomersPage() {
               key: 'actions',
               header: '',
               render: (c) => (
-                <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(c)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEdit(c);
+                  }}
+                >
                   Modifier
                 </Button>
               ),
@@ -279,6 +290,15 @@ export default function CustomersPage() {
         />
         </>
       )}
+      <Drawer
+        open={!!parkCustomer}
+        title={parkCustomer ? parkCustomer.name : 'Parc'}
+        onClose={() => setParkCustomer(null)}
+      >
+        {parkCustomer ? (
+          <EquipmentPark customerId={parkCustomer.id} compact />
+        ) : null}
+      </Drawer>
     </AppShell>
   );
 }

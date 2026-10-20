@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, PageLoading } from '@/components/ui';
+import { EquipmentPark } from '@/components/EquipmentPark';
+import { Button, Drawer, EmptyState, Modal, PageLoading } from '@/components/ui';
 import { api } from '@/lib/api';
 import { searchCustomers } from '@/lib/search';
 
@@ -36,6 +37,7 @@ export default function SitesPage() {
   const [filterCustomerId, setFilterCustomerId] = useState('');
   const [filterCustomerLabel, setFilterCustomerLabel] = useState('');
   const [city, setCity] = useState('');
+  const [parkSite, setParkSite] = useState<Site | null>(null);
 
   async function load() {
     setLoading(true);
@@ -254,6 +256,7 @@ export default function SitesPage() {
             rows={filtered}
             rowKey={(site) => site.id}
             defaultSortKey="name"
+            onRowClick={setParkSite}
             empty={<EmptyState title="Aucun site" />}
             columns={[
               {
@@ -307,7 +310,15 @@ export default function SitesPage() {
                 key: 'actions',
                 header: '',
                 render: (site) => (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(site)}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEdit(site);
+                    }}
+                  >
                     Modifier
                   </Button>
                 ),
@@ -317,6 +328,26 @@ export default function SitesPage() {
           </>
         )}
       </div>
+      <Drawer
+        open={!!parkSite}
+        title={parkSite ? parkSite.name : 'Parc'}
+        onClose={() => setParkSite(null)}
+      >
+        {parkSite ? (
+          <div className="form-stack">
+            <p className="muted" style={{ margin: 0 }}>
+              {parkSite.customer?.name}
+              {parkSite.address ? ` · ${parkSite.address}` : ''}
+              {parkSite.city ? ` · ${parkSite.city}` : ''}
+            </p>
+            <EquipmentPark
+              siteId={parkSite.id}
+              customerId={parkSite.customer?.id}
+              compact
+            />
+          </div>
+        ) : null}
+      </Drawer>
     </AppShell>
   );
 }

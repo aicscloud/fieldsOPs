@@ -122,6 +122,7 @@ model Organization {
   equipmentRepairs EquipmentRepair[]
   portalLinks     PortalLink[]
   groups          Group[]
+  maintenanceContracts MaintenanceContract[]
 }
 
 model User {
@@ -230,6 +231,7 @@ model Customer {
   workOrders   WorkOrder[]
   billingDocs  BillingDocument[]
   installedEquipment InstalledEquipment[]
+  maintenanceContracts MaintenanceContract[]
 
   @@index([organizationId])
 }
@@ -254,6 +256,7 @@ model Site {
   customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   workOrders   WorkOrder[]
   installedEquipment InstalledEquipment[]
+  maintenanceContracts MaintenanceContract[]
 
   @@index([organizationId])
   @@index([customerId])
@@ -273,6 +276,7 @@ model WorkOrderType {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   workOrders   WorkOrder[]
+  maintenanceContracts MaintenanceContract[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -297,6 +301,7 @@ model WorkOrder {
   startedAt        DateTime?
   completedAt      DateTime?
   parentId         String?
+  contractId       String?
   team             TeamGroup         @default(FIELD)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -321,8 +326,10 @@ model WorkOrder {
   installedEquipment InstalledEquipment[]
   equipmentRepairs EquipmentRepair[]
   portalLinks  PortalLink[]
+  contract     MaintenanceContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, number])
+  @@index([contractId])
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([organizationId, assignedToId])
@@ -588,6 +595,7 @@ model InstalledEquipment {
   workOrderPart WorkOrderPart? @relation(fields: [workOrderPartId], references: [id])
   repairs       EquipmentRepair[] @relation("RepairedUnit")
   replacedFrom  EquipmentRepair?  @relation("ReplacementUnit")
+  maintenanceContracts MaintenanceContract[]
 
   @@unique([organizationId, serialNumber])
   @@index([organizationId, status])
@@ -625,6 +633,36 @@ model EquipmentRepairPart {
   workOrderPart WorkOrderPart   @relation(fields: [workOrderPartId], references: [id], onDelete: Cascade)
 
   @@index([repairId])
+}
+
+model MaintenanceContract {
+  id                   String           @id @default(cuid())
+  organizationId       String
+  customerId           String
+  siteId               String
+  installedEquipmentId String?
+  typeId               String?
+  kind                 InterventionKind @default(REPAIR)
+  title                String
+  intervalMonths       Int
+  nextDueAt            DateTime
+  lastVisitAt          DateTime?
+  active               Boolean          @default(true)
+  notes                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer             @relation(fields: [customerId], references: [id])
+  site         Site                 @relation(fields: [siteId], references: [id])
+  equipment    InstalledEquipment?  @relation(fields: [installedEquipmentId], references: [id], onDelete: SetNull)
+  type         WorkOrderType?       @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  workOrders   WorkOrder[]
+
+  @@index([organizationId, active, nextDueAt])
+  @@index([organizationId, customerId])
+  @@index([organizationId, siteId])
+  @@index([installedEquipmentId])
 }
 
 model PortalLink {

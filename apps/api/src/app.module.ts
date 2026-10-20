@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
+import { ContractsModule } from './contracts/contracts.module';
 import { CustomersModule } from './customers/customers.module';
 import { GroupsModule } from './groups/groups.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -36,6 +37,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     WorkOrderTypesModule,
     WorkOrdersModule,
     BillingModule,
+    ContractsModule,
     InventoryModule,
     PortalModule,
     PlatformModule,

@@ -77,6 +77,12 @@ export class InventoryController {
     return this.inventoryService.listInstalled(user, { customerId, siteId, status, q });
   }
 
+  @Get('installed/:id')
+  @Roles(MembershipRole.OWNER, MembershipRole.MANAGER, MembershipRole.FIELD_WORKER)
+  getInstalled(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.inventoryService.getInstalled(user, id);
+  }
+
   @Post('install')
   @Roles(MembershipRole.OWNER, MembershipRole.MANAGER, MembershipRole.FIELD_WORKER)
   install(@CurrentUser() user: AuthUser, @Body() dto: InstallEquipmentDto) {
