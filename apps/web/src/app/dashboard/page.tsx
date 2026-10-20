@@ -2,10 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarDays,
+  FileText,
+  Plus,
+  Repeat,
+  UserRoundX,
+} from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { QuickCreateWorkOrder } from '@/components/QuickCreateWorkOrder';
-import { Button, Card, Modal, Skeleton, StatusBadge } from '@/components/ui';
+import { Button, Card, MetricCard, Modal, Skeleton, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 
 type Stats = {
@@ -192,6 +199,7 @@ export default function DashboardPage() {
       title="Activité"
       actions={
         <Button type="button" onClick={() => setCreateOpen(true)}>
+          <Plus size={16} />
           Créer une intervention
         </Button>
       }
@@ -211,50 +219,54 @@ export default function DashboardPage() {
 
       {loading ? (
         <div className="dash-metrics">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} height={84} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} height={96} />
           ))}
         </div>
       ) : (
         <div className="dash-metrics">
           <Link href="/planning" className="dash-metric-link">
-            <Card className="dash-metric">
-              <span>Aujourd’hui</span>
-              <strong>{stats?.today ?? 0}</strong>
-              <em>au planning</em>
-            </Card>
+            <MetricCard
+              icon={CalendarDays}
+              label="Aujourd’hui"
+              value={stats?.today ?? 0}
+              hint="au planning"
+            />
           </Link>
           <Link href="/work-orders" className="dash-metric-link">
-            <Card className="dash-metric">
-              <span>À affecter</span>
-              <strong>{stats?.unassigned ?? 0}</strong>
-              <em>sans technicien</em>
-            </Card>
+            <MetricCard
+              icon={UserRoundX}
+              label="À affecter"
+              value={stats?.unassigned ?? 0}
+              hint="sans technicien"
+            />
           </Link>
           <Link href="/planning" className="dash-metric-link">
-            <Card className={`dash-metric ${(stats?.overdue ?? 0) > 0 ? 'is-alert' : ''}`}>
-              <span>En retard</span>
-              <strong>{stats?.overdue ?? 0}</strong>
-              <em>échéance dépassée</em>
-            </Card>
+            <MetricCard
+              icon={AlertTriangle}
+              label="En retard"
+              value={stats?.overdue ?? 0}
+              hint="échéance dépassée"
+              className={(stats?.overdue ?? 0) > 0 ? 'is-alert' : ''}
+            />
           </Link>
           <Link href="/billing" className="dash-metric-link">
-            <Card className="dash-metric">
-              <span>À encaisser</span>
-              <strong className="dash-money">{money(billing.due, billing.currency)}</strong>
-              <em>
-                {billing.count} facture{billing.count > 1 ? 's' : ''} ouverte{billing.count > 1 ? 's' : ''}
-              </em>
-            </Card>
+            <MetricCard
+              icon={FileText}
+              label="À encaisser"
+              value={money(billing.due, billing.currency)}
+              valueClassName="dash-money"
+              hint={`${billing.count} facture${billing.count > 1 ? 's' : ''} ouverte${billing.count > 1 ? 's' : ''}`}
+            />
           </Link>
           <Link href="/contracts" className="dash-metric-link">
-            <Card className={`dash-metric ${(contracts?.overdue ?? 0) > 0 ? 'is-alert' : ''}`}>
-              <span>Visites dues</span>
-              <strong>{(contracts?.overdue ?? 0) + (contracts?.due ?? 0)}</strong>
-              <em>
-                {contracts?.overdue ?? 0} en retard
-              </em>
-            </Card>
+            <MetricCard
+              icon={Repeat}
+              label="Visites dues"
+              value={(contracts?.overdue ?? 0) + (contracts?.due ?? 0)}
+              hint={`${contracts?.overdue ?? 0} en retard`}
+              className={(contracts?.overdue ?? 0) > 0 ? 'is-alert' : ''}
+            />
           </Link>
         </div>
       )}

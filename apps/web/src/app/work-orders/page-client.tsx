@@ -9,11 +9,13 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
+  FileText,
   Mail,
   MapPin,
   Package,
   Phone,
   Plus,
+  Repeat,
   StickyNote,
   Tag,
   UserRound,
@@ -91,6 +93,7 @@ type WorkOrder = {
   assignedToId?: string | null;
   team?: string | null;
   parentId?: string | null;
+  contractId?: string | null;
   children?: {
     id: string;
     team?: string;
@@ -247,6 +250,35 @@ export default function WorkOrdersClient() {
     const timer = window.setTimeout(() => setQuery(q), 300);
     return () => window.clearTimeout(timer);
   }, [q]);
+
+  const openId = params.get('open');
+  useEffect(() => {
+    if (!openId) return;
+    let cancelled = false;
+    void api<WorkOrder>(`/work-orders/${openId}`)
+      .then((wo) => {
+        if (cancelled) return;
+        setSelected(wo);
+        const start = wo.scheduledStart
+          ? toLocalInput(wo.scheduledStart)
+          : defaultStartLocal();
+        const end = wo.scheduledEnd
+          ? toLocalInput(wo.scheduledEnd)
+          : defaultEndLocal(start, wo);
+        setPlanWorkerId(wo.assignedToId ?? wo.assignedTo?.id ?? '');
+        setPlanWorkerLabel(
+          wo.assignedTo ? `${wo.assignedTo.firstName} ${wo.assignedTo.lastName}` : '',
+        );
+        setPlanStart(start);
+        setPlanEnd(end);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Intervention introuvable');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -704,7 +736,14 @@ export default function WorkOrdersClient() {
       <Drawer
         open={!!selected}
         title={selected ? selected.number : ''}
-        onClose={() => setSelected(null)}
+        onClose={() => {
+          setSelected(null);
+          if (params.get('open')) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('open');
+            router.replace(`${url.pathname}${url.search}`);
+          }
+        }}
       >
         {selected ? (
           <div className="plan-drawer">
@@ -714,6 +753,16 @@ export default function WorkOrdersClient() {
                 <span className={`plan-priority p-${(selected.priority ?? 'NORMAL').toLowerCase()}`}>
                   {priorityLabel(selected.priority)}
                 </span>
+                {selected.status !== 'CANCELLED' && selected.status !== 'FAILED' ? (
+                  <Link
+                    className="btn btn-secondary btn-sm"
+                    href={`/billing?wo=${selected.id}`}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    <FileText size={14} />
+                    Facturer
+                  </Link>
+                ) : null}
               </div>
               <h3>{selected.title}</h3>
               {selected.kind ? (
@@ -731,6 +780,12 @@ export default function WorkOrdersClient() {
                   <span>
                     <Tag size={13} />
                     {selected.type.name}
+                  </span>
+                ) : null}
+                {selected.contractId ? (
+                  <span>
+                    <Repeat size={13} />
+                    Visite contrat
                   </span>
                 ) : null}
                 <span>

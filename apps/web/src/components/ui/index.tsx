@@ -7,7 +7,7 @@ import {
   SelectHTMLAttributes,
   useEffect,
 } from 'react';
-import { Eye, EyeOff, Loader2, X } from 'lucide-react';
+import { Eye, EyeOff, Loader2, X, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 export function Button({
@@ -117,6 +117,10 @@ const STATUS_LABELS: Record<string, string> = {
   PAID: 'Payé',
   ACTIVE: 'Actif',
   INACTIVE: 'Inactif',
+  overdue: 'En retard',
+  due: 'Due',
+  ok: 'À jour',
+  paused: 'Inactif',
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -137,6 +141,35 @@ export function Card({
     <section className={`card card-pad ${className}`}>
       {title ? <h2 className="card-title">{title}</h2> : null}
       {children}
+    </section>
+  );
+}
+
+export function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  className = '',
+  valueClassName,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  className?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <section className={`card card-pad dash-metric ${className}`}>
+      <div className="dash-metric-icon" aria-hidden>
+        <Icon size={18} strokeWidth={1.75} />
+      </div>
+      <div className="dash-metric-body">
+        <span>{label}</span>
+        <strong className={valueClassName}>{value}</strong>
+        {hint ? <em>{hint}</em> : null}
+      </div>
     </section>
   );
 }

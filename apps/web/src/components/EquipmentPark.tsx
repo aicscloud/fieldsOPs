@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Repeat } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { Drawer, EmptyState, PageLoading, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -159,8 +160,11 @@ export function EquipmentPark({
           description="Les unités posées sur une intervention apparaissent ici, avec leur n° de série."
         />
       )}
-      <p className="muted" style={{ marginTop: 12 }}>
-        <Link href={contractHref()}>Nouveau contrat de visite</Link>
+      <p style={{ marginTop: 14 }}>
+        <Link className="btn btn-secondary btn-sm" href={contractHref()}>
+          <Repeat size={14} />
+          Nouveau contrat de visite
+        </Link>
       </p>
       <UnitHistoryDrawer unitId={unitId} onClose={() => setUnitId(null)} />
     </>
@@ -266,6 +270,7 @@ export function UnitHistoryDrawer({
             className="btn btn-secondary"
             href={`/contracts?unitId=${unit.id}&customerId=${unit.customer.id ?? ''}&siteId=${unit.site.id ?? ''}`}
           >
+            <Repeat size={14} />
             Contrat sur cette unité
           </Link>
         </div>

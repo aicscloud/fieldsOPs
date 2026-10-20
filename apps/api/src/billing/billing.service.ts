@@ -16,6 +16,38 @@ function lineLabel(usage: {
   return usage.installed ? `${base} · n° ${usage.installed.serialNumber}` : base;
 }
 
+function hoursFromMs(ms: number) {
+  return Math.round((ms / 3_600_000) * 100) / 100;
+}
+
+function laborFromWorkOrder(wo: {
+  estimatedMinutes?: number | null;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
+  timeEntries?: { startedAt: Date; endedAt: Date | null }[];
+}) {
+  const logged = (wo.timeEntries ?? []).reduce((acc, entry) => {
+    if (!entry.endedAt) return acc;
+    return acc + Math.max(0, entry.endedAt.getTime() - entry.startedAt.getTime());
+  }, 0);
+  if (logged > 0) {
+    return { quantity: Math.max(0.25, hoursFromMs(logged)), source: 'actual' as const };
+  }
+  if (wo.startedAt && wo.completedAt) {
+    const span = wo.completedAt.getTime() - wo.startedAt.getTime();
+    if (span > 0) {
+      return { quantity: Math.max(0.25, hoursFromMs(span)), source: 'actual' as const };
+    }
+  }
+  if (wo.estimatedMinutes && wo.estimatedMinutes > 0) {
+    return {
+      quantity: Math.round((wo.estimatedMinutes / 60) * 100) / 100,
+      source: 'estimated' as const,
+    };
+  }
+  return { quantity: 1, source: 'default' as const };
+}
+
 @Injectable()
 export class BillingService {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,7 +59,7 @@ export class BillingService {
         ...(kind ? { kind: kind as never } : {}),
       },
       include: {
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
         workOrder: { select: { id: true, number: true, title: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -39,29 +71,27 @@ export class BillingService {
     const wo = await this.prisma.workOrder.findFirst({
       where: { id: workOrderId, organizationId: user.organizationId },
       include: {
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
         partsUsed: {
           include: { part: true, installed: true },
           orderBy: { createdAt: 'asc' },
         },
+        timeEntries: { select: { startedAt: true, endedAt: true } },
       },
     });
     if (!wo) throw new NotFoundException('Work order not found');
 
     const org = await this.prisma.organization.findUniqueOrThrow({
       where: { id: user.organizationId },
-      select: { laborHourlyRate: true, defaultTaxRate: true },
+      select: { laborHourlyRate: true, defaultTaxRate: true, currency: true },
     });
 
-    const laborHours =
-      wo.estimatedMinutes && wo.estimatedMinutes > 0
-        ? Math.round((wo.estimatedMinutes / 60) * 100) / 100
-        : 1;
-
+    const hours = laborFromWorkOrder(wo);
     const labor = {
       label: 'Main d’œuvre',
-      quantity: laborHours,
+      quantity: hours.quantity,
       unitPrice: org.laborHourlyRate ?? 0,
+      source: hours.source,
     };
 
     const parts = wo.partsUsed.map((u) => ({
@@ -78,6 +108,8 @@ export class BillingService {
       title: `Facturation ${wo.number} — ${wo.title}`,
       customerId: wo.customerId,
       customerName: wo.customer.name,
+      customerPhone: wo.customer.phone,
+      currency: org.currency,
       taxRate: org.defaultTaxRate ?? 20,
       labor,
       parts,

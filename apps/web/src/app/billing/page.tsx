@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
@@ -16,7 +17,7 @@ type Doc = {
   status: string;
   total: number;
   currency: string;
-  customer?: { id?: string; name: string };
+  customer?: { id?: string; name: string; phone?: string | null };
   workOrder?: { number: string } | null;
   lines?: { id: string; label: string; quantity: number; unitPrice: number }[];
 };
@@ -25,6 +26,7 @@ type BillLine = {
   label: string;
   quantity: number;
   unitPrice: number;
+  source?: 'actual' | 'estimated' | 'default';
 };
 
 type FromWorkOrder = {
@@ -33,11 +35,37 @@ type FromWorkOrder = {
   title: string;
   customerId: string;
   customerName: string;
+  customerPhone?: string | null;
+  currency?: string;
   taxRate?: number;
   labor: BillLine;
   parts: (BillLine & { sku?: string; unit?: string })[];
   lines: BillLine[];
 };
+
+function money(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency || 'XAF',
+      maximumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${Math.round(amount).toLocaleString('fr-FR')} ${currency}`;
+  }
+}
+
+function whatsappHref(phone: string | null | undefined, text: string) {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (digits.length < 8) return null;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
+function laborHint(source?: BillLine['source']) {
+  if (source === 'actual') return 'Temps réel de l’intervention';
+  if (source === 'estimated') return 'Durée estimée';
+  return '1 h par défaut, à ajuster';
+}
 
 const KIND_OPTIONS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -67,8 +95,10 @@ export default function BillingPage() {
   const [laborLabel, setLaborLabel] = useState('Main d’œuvre');
   const [laborQty, setLaborQty] = useState(1);
   const [laborPrice, setLaborPrice] = useState(0);
+  const [laborSource, setLaborSource] = useState<BillLine['source']>();
   const [partLines, setPartLines] = useState<BillLine[]>([]);
   const [taxRate, setTaxRate] = useState(20);
+  const [currency, setCurrency] = useState('XAF');
   const [q, setQ] = useState('');
   const [filterKind, setFilterKind] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -124,6 +154,8 @@ export default function BillingPage() {
       setLaborLabel(data.labor.label);
       setLaborQty(data.labor.quantity);
       setLaborPrice(data.labor.unitPrice);
+      setLaborSource(data.labor.source);
+      if (data.currency) setCurrency(data.currency);
       if (data.taxRate != null) setTaxRate(data.taxRate);
       setPartLines(
         data.parts.map((p) => ({
@@ -147,9 +179,42 @@ export default function BillingPage() {
     setLaborLabel('Main d’œuvre');
     setLaborQty(1);
     setLaborPrice(0);
+    setLaborSource(undefined);
     setPartLines([]);
     setTaxRate(20);
+    setCurrency('XAF');
   }
+
+  useEffect(() => {
+    const wo = new URLSearchParams(window.location.search).get('wo');
+    if (!wo) return;
+    setKind('INVOICE');
+    setOpen(true);
+    setWorkOrderId(wo);
+    void api<FromWorkOrder>(`/billing/from-work-order/${wo}`)
+      .then((data) => {
+        setWorkOrderLabel(`${data.number} · ${data.title}`);
+        setCustomerId(data.customerId);
+        setCustomerLabel(data.customerName);
+        setTitle(data.title);
+        setLaborLabel(data.labor.label);
+        setLaborQty(data.labor.quantity);
+        setLaborPrice(data.labor.unitPrice);
+        setLaborSource(data.labor.source);
+        if (data.currency) setCurrency(data.currency);
+        if (data.taxRate != null) setTaxRate(data.taxRate);
+        setPartLines(
+          data.parts.map((p) => ({
+            label: p.sku ? `${p.label} (${p.sku})` : p.label,
+            quantity: p.quantity,
+            unitPrice: p.unitPrice,
+          })),
+        );
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Impossible de charger l’intervention');
+      });
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -251,6 +316,11 @@ export default function BillingPage() {
 
           <section className="plan-drawer-card">
             <div className="plan-drawer-card-title">Main d’œuvre</div>
+            {workOrderId ? (
+              <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.8rem' }}>
+                {laborHint(laborSource)}
+              </p>
+            ) : null}
             <label className="field">
               <span>Libellé</span>
               <input
@@ -273,7 +343,7 @@ export default function BillingPage() {
                 />
               </label>
               <label className="field" style={{ flex: 1 }}>
-                <span>Prix / h (€)</span>
+                <span>Prix / h ({currency})</span>
                 <input
                   className="input"
                   type="number"
@@ -298,8 +368,8 @@ export default function BillingPage() {
                     <div style={{ flex: 1 }}>
                       <strong>{line.label}</strong>
                       <div className="muted">
-                        {line.quantity} × {line.unitPrice.toFixed(2)} € ={' '}
-                        {(line.quantity * line.unitPrice).toFixed(2)} €
+                        {line.quantity} × {money(line.unitPrice, currency)} ={' '}
+                        {money(line.quantity * line.unitPrice, currency)}
                       </div>
                     </div>
                   </li>
@@ -328,7 +398,7 @@ export default function BillingPage() {
             </label>
             <label className="field" style={{ flex: 1 }}>
               <span>Total TTC estimé</span>
-              <input className="input" readOnly value={`${previewTotal.toFixed(2)} €`} />
+              <input className="input" readOnly value={money(previewTotal, currency)} />
             </label>
           </div>
 
@@ -425,7 +495,7 @@ export default function BillingPage() {
               key: 'total',
               header: 'Total',
               sortValue: (d) => d.total,
-              render: (d) => `${d.total.toFixed(2)} ${d.currency}`,
+              render: (d) => money(d.total, d.currency),
             },
             {
               key: 'status',
@@ -437,12 +507,23 @@ export default function BillingPage() {
               key: 'actions',
               header: '',
               sortable: false,
-              render: (d) => (
+              render: (d) => {
+                const wa = whatsappHref(
+                  d.customer?.phone,
+                  `${d.kind === 'INVOICE' ? 'Facture' : 'Devis'} ${d.number}\n${d.customer?.name ?? ''}\n${money(d.total, d.currency)}${d.workOrder ? `\nIntervention ${d.workOrder.number}` : ''}`,
+                );
+                return (
                 <div className="row" onClick={(e) => e.stopPropagation()}>
                   {d.status === 'DRAFT' ? (
                     <Button size="sm" variant="secondary" onClick={() => void setStatus(d.id, 'SENT')}>
                       Envoyer
                     </Button>
+                  ) : null}
+                  {wa ? (
+                    <a className="btn btn-secondary btn-sm" href={wa} target="_blank" rel="noreferrer">
+                      <MessageCircle size={14} />
+                      WhatsApp
+                    </a>
                   ) : null}
                   {d.kind === 'INVOICE' && d.status !== 'PAID' ? (
                     <Button size="sm" onClick={() => void setStatus(d.id, 'PAID')}>
@@ -450,7 +531,8 @@ export default function BillingPage() {
                     </Button>
                   ) : null}
                 </div>
-              ),
+                );
+              },
             },
           ]}
         />

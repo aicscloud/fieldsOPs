@@ -3,10 +3,18 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import {
+  AlertTriangle,
+  CalendarClock,
+  ClipboardList,
+  Plus,
+  Repeat,
+  WandSparkles,
+} from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
 import { DataTable } from '@/components/DataTable';
 import { SearchSelect } from '@/components/SearchSelect';
-import { Button, EmptyState, Modal, PageLoading, StatusBadge } from '@/components/ui';
+import { Button, EmptyState, MetricCard, Modal, PageLoading, StatusBadge, Toast } from '@/components/ui';
 import { api } from '@/lib/api';
 import { searchCustomers, searchSites, searchWorkOrderTypes } from '@/lib/search';
 
@@ -82,6 +90,7 @@ export default function ContractsClient() {
   const [editing, setEditing] = useState<Contract | null>(null);
   const [q, setQ] = useState('');
   const [stateFilter, setStateFilter] = useState('');
+  const [kpi, setKpi] = useState('');
   const [busy, setBusy] = useState(false);
 
   const [customerId, setCustomerId] = useState(params.get('customerId') ?? '');
@@ -146,11 +155,22 @@ export default function ContractsClient() {
     const needle = q.trim().toLowerCase();
     return rows.filter((row) => {
       if (stateFilter && row.dueState !== stateFilter) return false;
+      if (kpi === 'overdue' && row.dueState !== 'overdue') return false;
+      if (kpi === 'due' && row.dueState !== 'due') return false;
+      if (kpi === 'open' && !row.openVisit) return false;
+      if (kpi === 'active' && !row.active) return false;
       if (!needle) return true;
       const hay = `${row.title} ${row.customer.name} ${row.site.name} ${row.equipment?.serialNumber ?? ''}`.toLowerCase();
       return hay.includes(needle);
     });
-  }, [rows, q, stateFilter]);
+  }, [rows, q, stateFilter, kpi]);
+
+  function toggleKpi(key: string) {
+    const next = kpi === key ? '' : key;
+    setKpi(next);
+    if (next === 'overdue' || next === 'due') setStateFilter(next);
+    else setStateFilter('');
+  }
 
   function closeForm() {
     setOpen(false);
@@ -273,41 +293,71 @@ export default function ContractsClient() {
       actions={
         <div className="row">
           <Button variant="secondary" disabled={busy} onClick={() => void generateDue()}>
+            <WandSparkles size={16} />
             Générer les visites en retard
           </Button>
-          <Button onClick={openCreate}>Nouveau contrat</Button>
+          <Button onClick={openCreate}>
+            <Plus size={16} />
+            Nouveau contrat
+          </Button>
         </div>
       }
     >
       {error ? <div className="error-box" style={{ marginBottom: 12 }}>{error}</div> : null}
-      {toast ? (
-        <p className="muted" style={{ marginTop: 0 }}>
-          {toast}
-        </p>
-      ) : null}
+      <Toast message={toast} onClose={() => setToast(null)} />
 
       {summary ? (
-        <div className="dash-metrics" style={{ marginBottom: 18 }}>
-          <div className={`card dash-metric ${summary.overdue ? 'is-alert' : ''}`}>
-            <span>En retard</span>
-            <strong>{summary.overdue}</strong>
-            <em>visite à faire</em>
-          </div>
-          <div className="card dash-metric">
-            <span>Due sous 14 jours</span>
-            <strong>{summary.due}</strong>
-            <em>à planifier</em>
-          </div>
-          <div className="card dash-metric">
-            <span>Visites ouvertes</span>
-            <strong>{summary.openVisits}</strong>
-            <em>déjà créées</em>
-          </div>
-          <div className="card dash-metric">
-            <span>Contrats actifs</span>
-            <strong>{summary.total}</strong>
-            <em>en portefeuille</em>
-          </div>
+        <div className="dash-metrics">
+          <button
+            type="button"
+            className={`dash-metric-link ${kpi === 'overdue' ? 'is-active' : ''}`}
+            onClick={() => toggleKpi('overdue')}
+          >
+            <MetricCard
+              icon={AlertTriangle}
+              label="En retard"
+              value={summary.overdue}
+              hint="visite à faire"
+              className={summary.overdue ? 'is-alert' : ''}
+            />
+          </button>
+          <button
+            type="button"
+            className={`dash-metric-link ${kpi === 'due' ? 'is-active' : ''}`}
+            onClick={() => toggleKpi('due')}
+          >
+            <MetricCard
+              icon={CalendarClock}
+              label="Due sous 14 jours"
+              value={summary.due}
+              hint="à planifier"
+              className={summary.due ? 'is-warn' : ''}
+            />
+          </button>
+          <button
+            type="button"
+            className={`dash-metric-link ${kpi === 'open' ? 'is-active' : ''}`}
+            onClick={() => toggleKpi('open')}
+          >
+            <MetricCard
+              icon={ClipboardList}
+              label="Visites ouvertes"
+              value={summary.openVisits}
+              hint="déjà créées"
+            />
+          </button>
+          <button
+            type="button"
+            className={`dash-metric-link ${kpi === 'active' ? 'is-active' : ''}`}
+            onClick={() => toggleKpi('active')}
+          >
+            <MetricCard
+              icon={Repeat}
+              label="Contrats actifs"
+              value={summary.total}
+              hint="en portefeuille"
+            />
+          </button>
         </div>
       ) : null}
 
@@ -463,6 +513,7 @@ export default function ContractsClient() {
             rows={filtered}
             rowKey={(row) => row.id}
             defaultSortKey="nextDueAt"
+            onRowClick={openEdit}
             empty={
               <EmptyState
                 title="Aucun contrat"
@@ -521,7 +572,7 @@ export default function ContractsClient() {
                 key: 'dueState',
                 header: 'État',
                 sortValue: (row) => row.dueState,
-                render: (row) => STATE_LABEL[row.dueState],
+                render: (row) => <StatusBadge status={row.dueState} />,
               },
               {
                 key: 'openVisit',
@@ -548,7 +599,10 @@ export default function ContractsClient() {
                       </Button>
                     ) : null}
                     {row.openVisit ? (
-                      <Link className="btn btn-secondary btn-sm" href="/work-orders">
+                      <Link
+                        className="btn btn-secondary btn-sm"
+                        href={`/work-orders?open=${row.openVisit.id}`}
+                      >
                         Voir
                       </Link>
                     ) : null}
