@@ -30,13 +30,25 @@ async function bootstrap() {
   console.log(`Intervenio API listening on http://localhost:${port}/api`);
 }
 
+function canonicalOrigin(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname === '127.0.0.1' ? 'localhost' : url.hostname;
+    const port = url.port ? `:${url.port}` : '';
+    return `${url.protocol}//${hostname}${port}`;
+  } catch {
+    return value;
+  }
+}
+
 function isAllowedOrigin(origin?: string) {
   const configured = (process.env.CORS_ORIGIN ?? '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
   if (!origin || configured.length === 0) return true;
-  if (configured.includes(origin)) return true;
+  const incoming = canonicalOrigin(origin);
+  if (configured.some((item) => canonicalOrigin(item) === incoming)) return true;
 
   let host = '';
   try {

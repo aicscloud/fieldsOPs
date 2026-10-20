@@ -61,10 +61,17 @@ export async function api<T>(
     }
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      `API injoignable (${API_URL}). Vérifiez que le serveur tourne.`,
+    );
+  }
 
   if (!response.ok) {
     if (response.status === 401 && auth && typeof window !== 'undefined') {
